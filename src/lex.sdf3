@@ -1,0 +1,88 @@
+module lex
+
+lexical syntax
+
+  LAYOUT = [\ \n\v\f\r]
+
+context-free restrictions
+
+  LAYOUT? -/- [\ \n\v\f\r\/]
+  
+lexical sorts ID INT INT_RAW INT_POSITIVE INT_POSITIVE_RAW INT_POSITIVE_ZERO BOOL FLOAT
+
+lexical syntax
+  ID = [a-zA-Z\_] [a-zA-Z0-9\_]*
+  
+  ID = "const" {reject}
+  ID = "type" {reject}
+  ID = "Null" {reject}
+  ID = "Bit" {reject}
+  ID = "Group" {reject}
+  ID = "Union" {reject}
+  ID = "Stream" {reject}
+  
+  ID = "true" {reject}
+  ID = "false" {reject}
+  
+  ID = "int" {reject}
+  ID = "str" {reject}
+  ID = "bool" {reject}
+  ID = "float" {reject}
+  
+  ID = "streamlet" {reject}
+  ID = "implement" {reject}
+  ID = "instance" {reject}
+  ID = "process" {reject}
+  
+  ID = "log" {reject}
+  
+  INT_RAW = [0-9][0-9\_]*
+  INT_RAW = "0x" [0-9a-fA-F][0-9a-fA-F\_]*
+  INT_RAW = "0b" [0-1][0-1\_]*
+  INT_RAW = "0o" [0-7][0-7\_]*
+  INT = INT_RAW "u"
+  INT = INT_RAW
+  
+//  INT_POSITIVE_ZERO = INT_RAW "u"
+//  INT_POSITIVE_ZERO = INT_RAW
+  
+//  INT_POSITIVE_RAW = [1-9][0-9\_]*
+//  INT_POSITIVE_RAW = "0x" [1-9a-fA-F][0-9a-fA-F\_]*
+//  INT_POSITIVE_RAW = "0b" [1][0-1\_]*
+//  INT_POSITIVE_RAW = "0o" [1-7][0-7\_]*
+//  INT_POSITIVE = INT_POSITIVE_RAW "u"
+//  INT_POSITIVE = INT_POSITIVE_RAW
+  
+  BOOL = "true"
+  BOOL = "false"
+  
+  FLOAT = [1-9][0-9]*"."[0-9]*
+  FLOAT = [0]"."[0-9]*
+  
+context-free restrictions
+  INT_RAW -/- [0-9a-fA-F]
+  INT -/- [0-9a-fA-Fu]
+  ID -/- [a-zA-Z0-9\_]
+  
+lexical sorts COMMENT COMMENT_CHAR EOF NEWLINE NEWLINE_EOF
+lexical syntax
+  LAYOUT = COMMENT
+  COMMENT = "//" ~[\n\r]* NEWLINE_EOF
+  NEWLINE_EOF = NEWLINE
+  NEWLINE_EOF = EOF
+  NEWLINE = [\n\r]
+  EOF =
+  
+lexical restrictions
+  EOF -/- ~[]
+  
+lexical sorts STR STR_CHAR
+lexical syntax
+  STR = "\"" STR_CHAR* "\""
+  STR_CHAR = [\32-\33\35-\91\93-\126]
+  STR_CHAR = "\\\""
+  STR_CHAR = "\\n"
+  STR_CHAR = "\\t"
+  STR_CHAR = "\\\\"
+  
+  

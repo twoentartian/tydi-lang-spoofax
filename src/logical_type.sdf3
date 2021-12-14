@@ -1,0 +1,41 @@
+module logical_type
+
+imports lex
+imports exp
+
+context-free sorts LogicalType SubItem StreamProperty
+
+context-free syntax
+LogicalType.NullType = <Null>
+
+LogicalType.BitsType = <Bit(<Exp>)>
+
+LogicalType.GroupType = <
+Group <ID> {
+  <SubItem+>
+}
+>
+
+LogicalType.UnionType = <
+Union <ID> {
+  <SubItem+>
+}
+>
+
+LogicalType.StreamType = <Stream(<LogicalType> <StreamProperty*> )>
+
+StreamProperty.Dimension = <, d = <Exp>>
+StreamProperty.UserType = <, u = <LogicalType>>
+StreamProperty.Throughput = <, t = <Exp>>
+StreamProperty.Synchronicity = <, s = <Exp>>
+StreamProperty.Complexity = <, c = <Exp>>
+StreamProperty.Direction = <, r = <Exp>>
+StreamProperty.Keep = <, x = <Exp>>
+
+LogicalType.UserDefinedType = <<ID>>
+
+SubItem.SubItem = <<ID> : <LogicalType> ,>
+
+context-free priorities
+LogicalType.StreamType<0> .> {LogicalType.StreamType LogicalType.GroupType LogicalType.UnionType},
+SubItem.SubItem<1> .> {LogicalType.GroupType LogicalType.UnionType}

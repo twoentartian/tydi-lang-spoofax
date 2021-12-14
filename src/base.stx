@@ -1,0 +1,308 @@
+module base
+
+imports signatures/exp-sig
+imports signatures/lex-sig
+imports signatures/statement-sig
+
+signature
+  name-resolution
+    labels GroupScope UnionScope StreamScope StreamletScope ImplementationScope
+
+  sorts
+    TYPE
+  
+  constructors
+    EmptyExp : Exp
+    
+    Null : TYPE
+    Int : TYPE
+    String : TYPE
+    Bool : TYPE
+    Float : TYPE
+    Array : TYPE -> TYPE
+    
+rules
+  typeOfBasicType : BasicType -> TYPE
+  typeOfBasicType(IntType()) = Int().
+  typeOfBasicType(StringType()) = String().
+  typeOfBasicType(BoolType()) = Bool().
+  typeOfBasicType(FloatType()) = Float().
+
+  typeOfConst : TypeIndicator -> TYPE
+  typeOfConst(EmptyTypeIndicator()) = Null().
+  typeOfConst(BasicType(basicType)) = T :-
+    typeOfBasicType(basicType) == T.
+  typeOfConst(BasicArrayType(basicType)) = Array(T) :-
+    typeOfBasicType(basicType) == T.
+  
+rules
+  typeOfExps maps typeOfExp(*,list(*)) = *
+  typesOfExps maps typeOfExp(*,list(*)) = list(*)
+  typeOfExp : scope * Exp -> TYPE
+  typeOfExp_ : scope * Exp -> TYPE
+  typeOfExp(s, e) = T :-
+    typeOfExp_(s,e) == T,
+    @e.type := T.
+    
+  typeOfExp_(s, IntExp(x)) = Int().
+  typeOfExp_(s, StringExp(x)) = String().
+  typeOfExp_(s, BoolExp(x)) = Bool().
+  typeOfExp_(s, FloatExp(x)) = Float().
+  typeOfExp_(s, ArrayExp(exps)) = Array(T) :-
+    typeOfExps(s, exps) == T.
+    
+  allowArrayRange : TYPE * TYPE * TYPE * TYPE
+  allowArrayRange(Int(),Int(),Int(),Int()).
+  typeOfExp_(s, ArrayRange(expStart, expStep, ExpEnd)) = outputType :- {elementType0 elementType1 elementType2 outputElementType}
+    typeOfExp(s, expStart) == elementType0 | error $[[expStart] must be an int],
+    typeOfExp(s, expStep) == elementType1 | error $[[expStep] must be an int],
+    typeOfExp(s, ExpEnd) == elementType2 | error $[[ExpEnd] must be an int],
+    allowArrayRange(elementType0,elementType1,elementType2,outputElementType),
+    outputType == Array(outputElementType).
+  
+  allowAdd : TYPE * TYPE -> TYPE
+  allowAdd(Int(), Int()) = Int().
+  allowAdd(String(), String()) = String().
+  allowAdd(Float(), Float()) = Float().
+  allowAdd(Int(), String()) = String().
+  allowAdd(String(), Int()) = String().
+  allowAdd(Bool(), String()) = String().
+  allowAdd(String(), Bool()) = String().
+  allowAdd(String(), Float()) = String().
+  allowAdd(Float(), String()) = String().
+  allowAdd(Int(), Float()) = Float().
+  allowAdd(Float(), Int()) = Float().
+  allowAdd(Array(T), T) = Array(T).
+  allowAdd(T, Array(T)) = Array(T).
+  typeOfExp_(s, Add(e0,e1)) = T :- {T0 T1}
+    allowAdd(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+  
+  allowMinus : TYPE * TYPE -> TYPE
+  allowMinus(Int(), Int()) = Int().
+  allowMinus(Float(), Int()) = Float().
+  allowMinus(Int(), Float()) = Float().
+  allowMinus(Float(), Float()) = Float().
+  typeOfExp_(s, Minus(e0,e1)) = T :- {T0 T1}
+    allowMinus(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowTimes : TYPE * TYPE -> TYPE
+  allowTimes(Int(), Int()) = Int().
+  allowTimes(Float(), Int()) = Float().
+  allowTimes(Int(), Float()) = Float().
+  allowTimes(Float(), Float()) = Float().
+  typeOfExp_(s, Times(e0,e1)) = T :- {T0 T1}
+    allowTimes(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowDiv : TYPE * TYPE -> TYPE
+  allowDiv(Int(), Int()) = Int().
+  allowDiv(Int(), Float()) = Float().
+  allowDiv(Float(), Int()) = Float().
+  allowDiv(Float(), Float()) = Float().
+  typeOfExp_(s, Div(e0,e1)) = T :- {T0 T1}
+    allowDiv(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowMod : TYPE * TYPE -> TYPE
+  allowMod(Int(), Int()) = Int().
+  typeOfExp_(s, Mod(e0,e1)) = T :- {T0 T1}
+    allowMod(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowLeftShift : TYPE * TYPE -> TYPE
+  allowLeftShift(Int(), Int()) = Int().
+  typeOfExp_(s, LeftShift(e0,e1)) = T :- {T0 T1}
+    allowLeftShift(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+
+  allowRightShift : TYPE * TYPE -> TYPE
+  allowRightShift(Int(), Int()) = Int().
+  typeOfExp_(s, RightShift(e0,e1)) = T :- {T0 T1}
+    allowRightShift(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowLog : TYPE * TYPE -> TYPE
+  allowLog(Int(),Int()) = Float().
+  allowLog(Float(),Int()) = Float().
+  allowLog(Int(),Float()) = Float().
+  typeOfExp_(s, Log(e0,e1)) = T :- {T0 T1}
+    allowLog(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowPower : TYPE * TYPE -> TYPE
+  allowPower(Int(),Int()) = Int().
+  allowPower(Float(),Int()) = Float().
+  allowPower(Int(),Float()) = Float().
+  allowPower(Float(),Float()) = Float().
+  typeOfExp_(s, Power(e0,e1)) = T :- {T0 T1}
+    allowPower(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+
+  allowBitwiseAnd : TYPE * TYPE -> TYPE
+  allowBitwiseAnd(Int(), Int()) = Int().
+  typeOfExp_(s, BitwiseAnd(e0,e1)) = T :- {T0 T1}
+    allowBitwiseAnd(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowBitwiseOr : TYPE * TYPE -> TYPE
+  allowBitwiseOr(Int(), Int()) = Int().
+  typeOfExp_(s, BitwiseOr(e0,e1)) = T :- {T0 T1}
+    allowBitwiseOr(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowBitwiseNot : TYPE * TYPE -> TYPE
+  allowBitwiseNot(Int(), Int()) = Int().
+  typeOfExp_(s, BitwiseNot(size, e0)) = T :- {T0 Tsize}
+    allowBitwiseNot(Tsize, T0) == T,
+    typeOfExp(s, size) == Tsize,
+    typeOfExp(s, e0) == T0.
+    
+  allowUnary : TYPE -> TYPE
+  allowUnary(Int()) = Int().
+  typeOfExp_(s, Unary(e0)) = T :- {T0}
+    allowUnary(T0) == T,
+    typeOfExp(s, e0) == T0.
+  
+  allowLogicalAnd : TYPE * TYPE -> TYPE
+  allowLogicalAnd(Bool(), Bool()) = Bool().
+  typeOfExp_(s, LogicalAnd(e0, e1)) = T :- {T0 T1}
+    allowLogicalAnd(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowLogicalOr : TYPE * TYPE -> TYPE
+  allowLogicalOr(Bool(), Bool()) = Bool().
+  typeOfExp_(s, LogicalOr(e0, e1)) = T :- {T0 T1}
+    allowLogicalOr(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+  allowLogicalNot : TYPE -> TYPE
+  allowLogicalNot(Bool()) = Bool().
+  typeOfExp_(s, LogicalNot(e0)) = T :- {T0 T1}
+    allowLogicalNot(T0) == T,
+    typeOfExp(s, e0) == T0.
+    
+  typeOfExp_(s, Var(id)) = T :- 
+    getConst(s, id) == (_, T, _).
+    
+  allowIndex : TYPE * TYPE -> TYPE
+  allowIndex(Array(T), Int()) = T.
+  typeOfExp_(s, Index(e, indexE)) = T :- {arrayT indexT}
+    allowIndex(arrayT, indexT) == T,
+    typeOfExp(s, e) == arrayT,
+    typeOfExp(s, indexE) == indexT.
+  
+  allowRound : TYPE -> TYPE
+  allowRound(Float()) = Int().
+  typeOfExp_(s, Round(e)) = outputT :- {T}
+    allowRound(T) == outputT,
+    typeOfExp(s, e) == T.
+  typeOfExp_(s, Floor(e)) = outputT :- {T}
+    allowRound(T) == outputT,
+    typeOfExp(s, e) == T.
+  typeOfExp_(s, Ceil(e)) = outputT :- {T}
+    allowRound(T) == outputT,
+    typeOfExp(s, e) == T.
+  
+  allowEqual : TYPE * TYPE -> TYPE
+  allowEqual(Int(),Int()) = Bool().
+  allowEqual(String(),String()) = Bool().
+  allowEqual(Bool(),Bool()) = Bool().
+  allowEqual(Float(),Float()) = Bool().
+  typeOfExp_(s,IsEqual(e0,e1)) = T :- {T0 T1}
+    allowEqual(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+  typeOfExp_(s,IsNotEqual(e0,e1)) = T :- {T0 T1}
+    allowEqual(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+  
+  allowArithmeticComparison : TYPE * TYPE -> TYPE
+  allowArithmeticComparison(Int(), Int()) = Bool().
+  allowArithmeticComparison(Float(), Float()) = Bool().
+  typeOfExp_(s,IsLarger(e0,e1)) = T :- {T0 T1}
+    allowArithmeticComparison(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+  typeOfExp_(s,IsLargerEqual(e0,e1)) = T :- {T0 T1}
+    allowArithmeticComparison(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+  typeOfExp_(s,IsSmaller(e0,e1)) = T :- {T0 T1}
+    allowArithmeticComparison(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+  typeOfExp_(s,IsSmallerEqual(e0,e1)) = T :- {T0 T1}
+    allowArithmeticComparison(T0, T1) == T,
+    typeOfExp(s, e0) == T0,
+    typeOfExp(s, e1) == T1.
+    
+///////////////////////////////////////////// const data type /////////////////////////////////////////////
+signature
+  relations
+    typeScope : -> TYPE
+    
+rules
+  typeOf : scope -> TYPE
+  typeOf(s) = T :-
+    query typeScope
+      filter e and true
+      min /* */ and true
+      in s |-> [(_, T)].
+  withType : TYPE -> scope
+  withType(T) = s :-
+    new s, !typeScope[T] in s.
+
+///////////////////////////////////////////// new const data /////////////////////////////////////////////
+signature
+  relations 
+    const : ID -> (scope * scope)
+rules
+  declareConst : scope * ID * TYPE
+  declareConst(s, x, T) :-
+    !const[x, (withType(T), s)] in s,
+    resolveConstInCurrentScope(s, x) == [(_, (_, _))] | error $[Duplicate definition of const [x]],
+    @x.type := T.
+    
+  resolveConst : scope * ID -> list((path * (ID * (scope * scope))))
+  resolveConst(s, x) = ps :- 
+    query const
+      filter (GroupScope | UnionScope | StreamScope | StreamletScope | ImplementationScope)*
+        and {x' :- x' == x}
+        min $ < GroupScope, $ < UnionScope, GroupScope < UnionScope, UnionScope < StreamScope, StreamScope < StreamletScope, StreamletScope < ImplementationScope 
+        and true
+         in s |-> ps. //TODO: add scope edge
+  
+  getConst : scope * ID -> (ID * TYPE * scope)
+  getConst(s, x) = output :- {x' T defineScope typeScope}
+    output == (x', T, defineScope),
+    resolveConst(s, x) == [(_,(x',(typeScope,defineScope))) |_] | error $[Const [x] not found],
+    typeOf(typeScope) == T,
+    @x.ref := x'.
+          
+  resolveConstInCurrentScope : scope * ID -> list((path * (ID * (scope * scope))))
+  resolveConstInCurrentScope(s, x) = ps :-
+    query const
+      filter e
+         and { x' :- x' == x }
+         min 
+         and true
+          in s |-> ps.
+  
+  
+  

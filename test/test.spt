@@ -1,0 +1,347 @@
+module test
+
+test type assign [[
+package test;
+
+type A = Bit(1);
+type Group A {
+  a : Bit(10),
+  b : Bit(11),
+};
+type Union A {
+  a : Bit(10),
+  b : Bit(11),
+};
+type A = Union A {
+  a : Bit(10),
+  b : Stream(A, d=0, t="user type"),
+  c : Stream(A, t="user type"),
+  d : Stream(A, d=0),
+  e : Stream(A),
+};
+]] parse succeeds
+
+test type assign [[
+package test;
+
+type A = Group {
+  a : Group {
+  	Bit(10),
+  },
+};
+]] parse fails
+
+test const assign [[
+package test;
+
+const i = 1;
+const i : int = 1;
+const i : str = 1;
+
+]] parse succeeds
+
+test streamlet [[
+package test;
+
+streamlet string <char : type> {
+  a : char out,
+  b : Bit(10) out,
+};
+streamlet string <char_length : int> {
+  a : Bit(char_length) out,
+  b : Bit(10) out,
+  c : Stream(A) out,
+  d : Stream(A) in,
+};
+]] parse succeeds
+
+test streamlet [[
+package test;
+
+streamlet string <char_length : int> {
+  a : Group {
+    g : Bit(10) out,
+  } out,
+};
+]] parse fails
+
+test streamlet [[
+package test;
+
+type Group t{
+  d:Bit(10),
+};
+streamlet string <char_length : int> {
+  a : t out,
+};
+]] parse succeeds
+
+test app [[
+package test;
+
+import a;
+
+const i = 1u;
+const i = -1;
+const i : int = 1;
+const i : str = "1";
+
+type t = Bit(10);
+type A = Bit(1);
+type A = Group A {
+  a : Bit(10),
+  b : Bit(11),
+};
+type A = Union A {
+  a : Bit(10),
+  b : Bit(11),
+};
+type A = Stream(A, d=0, t="user type");
+type A = Union A {
+  a : Bit(10),
+  b : Stream(A, d=0, t="user type"),
+  c : Stream(A, t="user type"),
+  d : Stream(A, d=0),
+  e : Stream(A),
+};
+
+// define a streamlet
+streamlet adder<N : int> {
+  a : Bit(N) in,
+  b : Bit(N) in,
+  out : Bit(N) out,
+  overflow: Bit(1) out,
+};
+
+streamlet demux<N:int, DATATYPE : type> {
+  in : DATATYPE in,
+  selection : Bit(8) in,
+  out : DATATYPE[N] out,
+};
+
+// define an implementation for a streamlet
+implement adder_8b <n:int> of adder<8> {
+  process{},
+};
+
+streamlet adder_4 {
+  a : Bit(8) in,
+  b : Bit(8) in,
+  c : Bit(8) in,
+  d : Bit(8) in,
+  overflow: Bit(1) out,
+  out : Bit(8) out,
+};
+
+implement adder_4port_8bit of adder_4port<8> {
+  instance adder_1(adder_8b),
+  instance adder_2(adder_8b),
+  instance adder_3(adder_8b),
+  
+  self.a => adder_1.a,
+  self.b => adder_1.b,
+  self.c => adder_2.a,
+  self.d => adder_2.b,
+  adder1.out => adder_3.a,
+  adder2.out => adder_3.b,
+  adder3.out => self.out "netName",
+  
+  process{},
+};
+
+implement adder_8bit of adder<8> {
+  instance adder_1(adder_8b),
+  instance adder_2(adder_8b),
+  instance adder_3(adder_8b),
+  
+  self.a => adder_1.a,
+  self.b => adder_1.b,
+  self.c => adder_2.a,
+  self.d => adder_2.b,
+  adder1.out => adder_3.a,
+  adder2.out => adder_3.b,
+  adder3.out => self.out "netName",
+  
+  process{},
+};
+
+implement adder_4_3adders of adder_4 {
+  instance adders(adder_8b) [3],
+  
+  self.a => adders[0].a,
+  self.b => adders[0].b, // maybe sugering: [self.a,self.b] => [adder_1.a, adder_1.b]
+  self.c => adders[1].a,
+  self.d => adders[1].b,
+  adders[0].out => adders[2].a,
+  adders[1].out => adders[2].b,
+  adders[2].out => self.out "netName",
+  
+  process{},
+};
+
+]] parse succeeds
+
+test if_for [[
+package test;
+
+implement adder_4_3adders<flag:bool> of adder_4 {
+    instance adders(adder_8b) [3],
+  
+    self.a => adders[0].a,
+    self.b => adders[0].b, // maybe sugering: [self.a,self.b] => [adder_1.a, adder_1.b]
+    self.c => adders[1].a,
+    self.d => adders[1].b,
+    adders[0].out => adders[2].a,
+    adders[1].out => adders[2].b,
+    adders[2].out => self.out "netName",
+
+
+    for i in 0 -1-> 5 {
+      
+    }
+  
+    instance adder_1(adder_8b<0>),
+    instance adder_2(adder_8b<0>),
+    instance adder_3(adder_8b<1>),
+  
+    self.a => adder_1.a,
+    self.b => adder_1.b, // maybe sugering: [self.a,self.b] => [adder_1.a, adder_1.b]
+    self.c => adder_2.a,
+    self.d => adder_2.b,
+    adder1.out => adder_3.a,
+    adder2.out => adder_3.b,
+    adder3.out => self.out "netName",
+  
+  
+  process{},
+};
+
+]] parse succeeds
+
+test clock_domain [[
+package test;
+
+implement adder_4_3adders<flag:bool> of adder_4 {
+  
+};
+
+]] parse succeeds
+
+test parallel_adder [[
+package test;
+
+// define a streamlet
+streamlet adder<N : int> {
+  a : Bit(N) in,
+  b : Bit(N) in,
+  c: Null out,
+  out : Bit(N) out,
+  overflow: Bit(1) out,
+};
+
+// define an implementation for a streamlet
+implement adder_8b <n:int> of adder<8> {
+  process{},
+};
+
+streamlet adder <N: int> {
+  inputs: Bit(8) [N] in,
+  overflow: Bit(1) [N ./ 2] out,
+  out : Bit(8) [N ./ 2] out,
+  global_overflow : Bit(1) out,
+};
+
+implement adder_ <N:int> of adder <N> {
+  instance adders(adder_8b) [N ./ 2],
+  instance and_gate(std_and_gate<N ./ 2>),
+  for i in 0-1->N./2 {
+    self.inputs[i*2] => adders[i].a,
+    self.inputs[i*2+1] => adders[i].b,
+    adders[i].overflow => self.overflow[i],
+    adders[i].overflow => and_gate.input[i],
+    adders[i].out => self.out,
+  }
+  and_gate.output => self.overflow,
+  
+  process{},
+};
+]] parse succeeds
+
+test delayed_net [[
+package test;
+streamlet adder<N:int> {
+  inputs: Bit(8) [N] in,
+  out : Bit(8) [N./2] in,
+  overflow : Bit(1) out,
+};
+
+implement adder_ <N:int> of adder <N> {
+  instance adders(adder_8b) [N ./ 2],
+  instance and_gate(std_and_gate<N ./ 2>),
+  for i in 0-1->N./2 {
+    self.inputs[i*2] => adders[i].a,
+    self.inputs[i*2+1] => adders[i].b,
+    adders[i].overflow => self.overflow[i],
+    adders[i].overflow => and_gate.input[i],
+    adders[i].out =1=> self.out,
+  }
+  and_gate.output => global_overflow,
+  
+  process{},
+};
+]] parse succeeds
+
+test instance [[
+package test;
+
+implement adder_ <N:int> of adder <N> {
+  instance adders(adder_8b) [N ./ 2],
+  instance and_gate(std_and_gate<N ./ 2>),
+  for i in 0-1->N./2 {
+    self.inputs[i*2] => adders[i].a,
+    self.inputs[i*2+1] => adders[i].b,
+    adders[i].overflow => self.overflow[i],
+    adders[i].overflow => and_gate.input[i],
+    adders[i].out =1=> self.out,
+  }
+  and_gate.output => global_overflow,
+  
+  process{},
+};
+
+instance add_8(adder_<8>);
+]] parse succeeds
+
+test port complexity [[
+package test;
+streamlet adder<N : int> {
+  a : Bit(N) in,
+  b : Bit(N) in,
+  out : Bit(N) out,
+  overflow: Bit(1) out,
+};
+]] parse succeeds
+
+test mux demux [[
+package test;
+
+streamlet process_unit<inputT:type, outputT:type> {
+  input: inputT in,
+  output : outputT out,
+};
+
+implement process_unit_0<inputT:type, outputT:type, delay:int> of process_unit<inputT> {
+  instance single_PU(PU) [delay],
+  instance demux(std_demux<inputT, delay>),
+  instance mux(std_mux<outputT, delay>),
+  
+  self.input => demux.input,
+  mux.output => self.output,
+  for i in 0-1->delay {
+    demux.out[i] => single_PU[i].input,
+    single_PU[i].output => mux.input[i],
+  }
+  
+};
+
+]] parse succeeds

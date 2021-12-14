@@ -1,0 +1,22 @@
+module statement
+
+imports lex
+imports logical_type
+imports exp
+imports streamlet
+
+context-free sorts Statement TypeIndicator
+
+context-free syntax
+Statement.TypeAssign = <type <ID> = <LogicalType> ;>
+Statement.ConstAssign = <const <ID> <TypeIndicator> = <Exp> ;>
+TypeIndicator.EmptyTypeIndicator = <>
+TypeIndicator.BasicType = <: <BasicType>>
+TypeIndicator.BasicArrayType = <: <BasicType>[] >
+
+Statement.DeclareStreamLet = < <StreamLet> ; >
+Statement.DeclareImplementation = < <Implementation> ;>
+Statement.DeclareGlobalInstance = < <Instance> ;>
+Statement.DeclareLogicalDataType = < type <LogicalType> ;>
+
+Statement.AssertEqualLogicalType = <assert type ( <LogicalType> == <LogicalType> ) ;>

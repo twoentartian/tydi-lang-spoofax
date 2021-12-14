@@ -1,0 +1,90 @@
+module logical_test
+
+test logical type [[
+package test;
+
+const eight = 8;
+
+type bit = Bit(1);
+type byte = Bit(8);
+
+assert type (bit == Bit(1));
+assert type (byte == Bit(8));
+assert type (Bit(64) == Bit(64));
+
+type Group Group0 {
+  a : bit,
+  b : byte,
+  c : Bit(64),
+};
+type Group Group1 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Group Group2 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union Union0 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union0_ = Union0;
+
+assert type (Group0 == Group0);
+assert type (Group1 == Group1);
+assert type (Union0_ == Union0);
+]] analysis succeeds
+
+test logical type [[
+package test;
+
+const eight = 8;
+const nine = eight + 1;
+
+type bit = Bit(1);
+type byte = Bit(8);
+
+assert type (bit == Bit(1));
+assert type (byte == Bit(8));
+assert type (Bit(64) == Bit(64));
+
+type Group Group0 {
+  a : bit,
+  b : byte,
+  c : Bit(64),
+};
+type Group Group1 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Group Group2 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union Union0 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union0_ = Union0;
+
+assert type (Group0 == Group0);
+assert type (Group1 == Group1);
+assert type (Union0_ == Union0);
+
+type stream0 = Stream(Group0, d=nine, t="123456");
+type stream1 = Stream(Group0, d=nine);
+assert type (stream0 == stream1);
+]] analysis succeeds

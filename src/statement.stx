@@ -1,0 +1,43 @@
+module statement
+
+imports signatures/statement-sig
+imports base
+imports logical_type
+imports streamlet
+
+rules
+  typeOfTypeIndicator : TypeIndicator -> TYPE
+  typeOfTypeIndicator(EmptyTypeIndicator()) = Null().
+  typeOfTypeIndicator(BasicType(basicType)) = T :-
+    typeOfBasicType(basicType) == T.
+  typeOfTypeIndicator(BasicArrayType(basicType)) = Array(T) :-
+    typeOfBasicType(basicType) == T.
+
+  statementOk : scope * Statement
+  allowConstAssign : TYPE * TYPE -> TYPE
+  allowConstAssign(T,T) = T.
+  allowConstAssign(Null(),T) = T.
+  allowConstAssign(Float(),Int()) = Float().
+  statementOk(s, ConstAssign(id, typeIndicator, exp)) :- {indicatorT expT varT}
+    typeOfTypeIndicator(typeIndicator) == indicatorT,
+    typeOfExp(s, exp) == expT,
+    allowConstAssign(indicatorT, expT) == varT,
+    declareConst(s, id, varT).
+    
+  statementOk(s, TypeAssign(id, logicalType)) :- {T}
+    typeOfLogicalType(s, logicalType) == T,
+    declareLogicalType(s, id, T).
+    
+  statementOk(s, DeclareLogicalDataType(logicalType)) :- {T}
+    typeOfLogicalType(s, logicalType) == T.
+  
+  statementOk(s, AssertEqualLogicalType(t1,t2)) :- {T1 T2}
+    typeOfLogicalType(s, t1) == T1,
+    typeOfLogicalType(s, t2) == T2,
+    isSameLogicalType(T1, T2).
+    
+  statementOk(s, DeclareStreamLet(streamlet)) :- 
+    streamletOk(s, streamlet).
+    
+  statementOk(s, DeclareImplementation(impl)) :- 
+    implementationOk(s, impl).

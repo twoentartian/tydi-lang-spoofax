@@ -1,0 +1,59 @@
+module exp
+
+imports lex
+
+context-free sorts Exp BasicType 
+
+context-free syntax
+BasicType.IntType = "int"
+BasicType.StringType = "str"
+BasicType.BoolType = "bool"
+BasicType.FloatType = "float"
+
+Exp.IntExp = INT
+Exp.StringExp = STR
+Exp.BoolExp = BOOL
+Exp.FloatExp = FLOAT
+
+Exp.ArrayExp = <{ <{Exp ","}+> }>
+Exp.ArrayRange = < <Exp> -<Exp>-\> <Exp> >
+
+Exp = <(<Exp>)> {bracket}
+Exp.Add = <<Exp> + <Exp>> {left}
+Exp.Minus = <<Exp> - <Exp>> {left}
+Exp.Times = <<Exp> * <Exp>> {left}
+Exp.Div = Exp "./" Exp {left} // this is a bug of Spoofax, so use ./ to replace /
+Exp.Mod = <<Exp> % <Exp>> {left}
+Exp.LeftShift = Exp "<<" Exp {left}
+Exp.RightShift = Exp ">>" Exp {left}
+Exp.Log = <log <Exp> ( <Exp> )> {left}
+Exp.Power = < <Exp> ^ <Exp>> {left}
+Exp.BitwiseAnd = <<Exp> & <Exp>> {left}
+Exp.BitwiseOr = <<Exp> | <Exp>> {left}
+Exp.BitwiseNot = < ~ ( <Exp> ) <Exp> > {left}
+Exp.Unary = <- <Exp> > //Here is a compromise because we want to support -a, -var, so -1u is also acceptable
+
+Exp.LogicalAnd = <<Exp> && <Exp>> {left}
+Exp.LogicalOr = <<Exp> || <Exp>> {left}
+Exp.LogicalNot = <! <Exp>> {left}
+
+Exp.Var = <<ID>>
+Exp.Index = <<Exp> [ <Exp> ] >
+
+Exp.Round = <round ( <Exp> ) >
+Exp.Floor = <floor ( <Exp> ) >
+Exp.Ceil = <ceil ( <Exp> )>
+
+Exp.IsEqual = <<Exp> == <Exp>> {left}
+Exp.IsNotEqual = <<Exp> != <Exp>> {left}
+Exp.IsLarger = <<Exp> \> <Exp>> {left}
+Exp.IsLargerEqual = <<Exp> \>= <Exp>> {left}
+Exp.IsSmaller = <<Exp> \< <Exp>> {left}
+Exp.IsSmallerEqual = <<Exp> \<= <Exp>> {left}
+
+context-free priorities
+{left: Exp.BitwiseNot Exp.Unary Exp.LogicalNot Exp.Power Exp.Log} > 
+{left: Exp.Times Exp.Div Exp.Mod} > 
+{left: Exp.LeftShift Exp.RightShift Exp.Add Exp.Minus Exp.BitwiseAnd Exp.BitwiseOr Exp.LogicalAnd Exp.LogicalOr} > 
+{non-assoc: Exp.IsEqual Exp.IsLarger Exp.IsLargerEqual Exp.IsSmaller Exp.IsSmallerEqual} > 
+{Exp.ArrayRange Exp.ArrayExp}

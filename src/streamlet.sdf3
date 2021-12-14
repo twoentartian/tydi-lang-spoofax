@@ -1,0 +1,94 @@
+module streamlet
+
+imports lex
+imports exp
+imports logical_type
+
+context-free sorts StreamLet Arg StreamLetArgs StreamLetBody Direction PortComplexityLevel
+
+context-free syntax
+StreamLet.StreamLet = <
+streamlet <ID> <StreamLetArgs>  {
+  <StreamLetBody+>
+}
+>
+
+StreamLetArgs.NoStreamLetArg = <>
+StreamLetArgs.SomeStreamLetArgs = < \< <{Arg ","}+> \> >
+Arg.ArgLogicalType = <<ID> : type>
+Arg.ArgValue = <<ID> : <BasicType>>
+Arg.ArgInstancecType = <<ID> : instance>
+
+StreamLetBody.StreamLetPort = < <ID> : <LogicalType> <Direction>,>
+StreamLetBody.StreamLetPortArray = < <ID> : <LogicalType> [ <Exp> ] <Direction>,>
+Direction.DirIn = <in>
+Direction.DirOut = <out>
+
+context-free priorities
+StreamLetBody.StreamLetPort<2> .> {LogicalType.GroupType LogicalType.UnionType}
+
+context-free sorts Implementation ImplementationBody ArgExp ArgExps NetName LogicalTypeSlice ImplementationArgs ClockDomain
+
+context-free syntax
+Implementation.Implementation = <
+implement <ID> <ImplementationArgs> of <ID> <ArgExps> {
+  <ImplementationBody*>
+}
+>
+
+ArgExps.EmptyStreamLetArgExps = <>
+ArgExps.SomeStreamLetArgExps = < \< <{ArgExp ","}+> \> >
+ArgExp.ConstExp = Exp
+ArgExp.TypeExp = <typename <LogicalType>>
+ArgExp.InstanceExp = <instance <ID>>
+
+ImplementationArgs.NoImplementationArgs = <>
+ImplementationArgs.ImplementationArgs =  < \< <{Arg ","}+> \> >
+
+ImplementationBody.DeclareInstance = <instance <ID> ( <ID> <ArgExps> ) ,>
+ImplementationBody.DeclareInstanceArray = <instance <ID> ( <ID> <ArgExps> ) [ <Exp> ] ,>
+ImplementationBody.DeclareNet = <<LogicalTypeSlice> =\> <LogicalTypeSlice> <NetName>,>
+ImplementationBody.DeclareDelayedNet = <<LogicalTypeSlice> =<Exp>=\> <LogicalTypeSlice> <NetName>,>
+NetName.EmptyNetName = <>
+NetName.NetName = < <Exp> > // typeOfExp = String
+
+ImplementationBody.DeclareProcess = <process { } ,>
+
+LogicalTypeSlice.LogicalTypeSlice = <<ID>>
+LogicalTypeSlice.AccessIndex = <<LogicalTypeSlice> [ <Exp> ] >
+LogicalTypeSlice.SubLogicalTypeSlice = <<LogicalTypeSlice> . <ID>>
+
+context-free sorts ElifBlock ElseBlock ForBlock
+context-free syntax
+ImplementationBody.IfBlock = <
+if ( <Exp> ) {
+  <ImplementationBody*>
+}
+<ElifBlock*>
+<ElseBlock>
+>
+
+ElifBlock.ElifBlock = <
+elif ( <Exp> ) {
+  <ImplementationBody*>
+}
+>
+
+ElseBlock.EmptyElseBlock = <>
+ElseBlock.ElseBlock = <
+else {
+  <ImplementationBody*>
+}
+>
+
+ImplementationBody.ForBlock = <
+for <ID> in <Exp> {
+  <ImplementationBody*>
+}
+>
+
+context-free sorts Instance
+context-free syntax
+Instance.GlobalInstance = <
+instance <ID> ( <ID> <ArgExps> )
+>

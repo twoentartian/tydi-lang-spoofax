@@ -1,0 +1,20 @@
+module main
+
+imports signatures/start-sig
+imports statement
+
+rules
+
+  projectOk : scope
+  projectOk(s).
+
+  fileOk : scope * Start
+  fileOk(s, Start(packageId, elements)) :- {fileScope}
+    new fileScope,
+    startElementsOk(s, elements).
+  
+  startElementOk : scope * StartElement
+  startElementsOk maps startElementOk(*, list(*))
+  startElementOk(s, AStatement(stat)) :-
+    statementOk(s, stat).
+  startElementOk(s, AImport(id)).//TODO: verify the import id exists

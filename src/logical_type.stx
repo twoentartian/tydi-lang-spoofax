@@ -1,0 +1,211 @@
+module logical_type
+
+imports signatures/exp-sig
+imports base
+
+signature
+  sorts
+    LOGICAL_DATA_TYPE
+  constructors
+    EmptyLogicalData : LOGICAL_DATA_TYPE
+    DataNull : LOGICAL_DATA_TYPE
+    DataBitType : Exp -> LOGICAL_DATA_TYPE
+    DataGroupType : scope * ID -> LOGICAL_DATA_TYPE
+    DataUnionType : scope * ID -> LOGICAL_DATA_TYPE
+    DataStreamType : LOGICAL_DATA_TYPE * scope -> LOGICAL_DATA_TYPE
+  
+    LogicalDataType : LOGICAL_DATA_TYPE -> TYPE
+    EmptyLogicalDataType : TYPE
+
+///////////////////////////////////////////// declare new logical types /////////////////////////////////////////////
+signature
+  relations
+    logicalTypeScope : -> LOGICAL_DATA_TYPE
+    
+rules
+  logicalTypeOf : scope -> LOGICAL_DATA_TYPE
+  logicalTypeOf(s) = T :-
+    query logicalTypeScope
+      filter e and true
+      min /* */ and true
+      in s |-> [(_, T)].
+  withLogicalType : LOGICAL_DATA_TYPE -> scope
+  withLogicalType(T) = s :-
+    new s, !logicalTypeScope[T] in s.
+
+signature
+  relations 
+    logicalType : ID -> scope
+rules
+  declareLogicalType : scope * ID * LOGICAL_DATA_TYPE
+  declareLogicalType(s, x, T) :-
+    !logicalType[x, withLogicalType(T)] in s,
+    resolveLogicalTypeInCurrentScope(s, x) == [(_, (_, _))] | error $[Duplicate definition of logical data type [x]],
+    @x.type := T.
+  
+  typeOfLogicalTypeRef : scope * ID -> LOGICAL_DATA_TYPE
+  typeOfLogicalTypeRef(s, x) = logicalTypeOf(T) :- {x'} 
+    resolveLogicalType(s, x) == [(_,(x', T))|_]
+      | error $[Type [x] not defined],
+    @x.type := logicalTypeOf(T),
+    @x.ref := x'.
+    
+  resolveLogicalType : scope * ID -> list((path * (ID * scope)))
+  resolveLogicalType(s, x) = ps :- 
+    query logicalType
+      filter (GroupScope | UnionScope | StreamScope | StreamletScope | ImplementationScope)*
+        and {x' :- x' == x}
+        min $ < GroupScope, $ < UnionScope, GroupScope < UnionScope, UnionScope < StreamScope, StreamScope < StreamletScope, StreamletScope < ImplementationScope 
+        and true
+         in s |-> ps. //TODO: add scope edge
+          
+  resolveLogicalTypeInCurrentScope : scope * ID -> list((path * (ID * scope)))
+  resolveLogicalTypeInCurrentScope(s, x) = ps :-
+    query logicalType
+      filter e
+        and {x' :- x' == x}
+        min
+        and true
+         in s |-> ps.
+
+///////////////////////////////////////////// declare nested logical types /////////////////////////////////////////////
+signature
+  relations 
+    nestedLogicalType : ID -> (scope * scope)
+rules
+  declareNestedLogicalType : scope * ID * LOGICAL_DATA_TYPE
+  declareNestedLogicalType(s, x, T) :-
+    !nestedLogicalType[x, (withLogicalType(T), s)] in s,
+    resolveNestedLogicalType(s, x) == [(_, (_, _))] | error $[Duplicate definition of type [x]],
+    @x.type := T.
+    
+  resolveNestedLogicalType : scope * ID -> list((path * (ID * (scope * scope))))
+  resolveNestedLogicalType(s, x) = ps :- 
+    query nestedLogicalType
+      filter e
+         and { x' :- x' == x }
+         min 
+         and true
+          in s |-> ps.
+          
+  nestedLogicalTypeInScope : scope -> list((path * (ID * (scope * scope))))
+  nestedLogicalTypeInScope(s) = ps :- 
+    query nestedLogicalType
+      filter e
+         and true
+         min 
+         and true
+          in s |-> ps.
+          
+  logicalTypeSearchResultToType : (path * (ID * (scope * scope))) -> LOGICAL_DATA_TYPE
+  logicalTypeSearchResultsToType maps logicalTypeSearchResultToType(list(*)) = list(*)
+  logicalTypeSearchResultToType((_,(_,(typeScope,_)))) = T :-
+    logicalTypeOf(typeScope) == T.
+
+rules
+  typeOfLogicalType : scope * LogicalType -> LOGICAL_DATA_TYPE
+  typeOfLogicalType(s, NullType()) = DataNull().
+  typeOfLogicalType(s, BitsType(e)) = DataBitType(e) :-
+    typeOfExp(s,e) == Int().
+  typeOfLogicalType(s, GroupType(id, items)) = T :- {inner_scope}
+    new inner_scope, inner_scope -GroupScope-> s,
+    declareLogicalType(s, id, T),
+    T == DataGroupType(inner_scope, id),
+    addSubItems(inner_scope, items).
+  typeOfLogicalType(s, UnionType(id, items)) = T :- {inner_scope}
+    new inner_scope, inner_scope -UnionScope-> s,
+    declareLogicalType(s, id, T),
+    T == DataUnionType(inner_scope, id),
+    addSubItems(inner_scope, items).
+  typeOfLogicalType(s, StreamType(logicalType, streamProperties)) = DataStreamType(T, streamScope) :- {}
+    new streamScope, streamScope-StreamScope->s,
+    typeOfLogicalType(s, logicalType) == T,
+    addStreamProperties(streamScope, streamProperties).
+    
+  typeOfLogicalType(s, UserDefinedType(id)) = typeOfLogicalTypeRef(s, id).
+  
+  //addSubItems(inner_scope * list(SubItem))
+  addSubItem : scope * SubItem
+  addSubItems maps addSubItem(*,list(*))
+  addSubItem(s, SubItem(id, logicalType)) :- {T}
+    typeOfLogicalType(s, logicalType) == T,
+    declareNestedLogicalType(s,id, T).
+  
+  isSameLogicalType : LOGICAL_DATA_TYPE * LOGICAL_DATA_TYPE
+  isSameLogicalTypes maps isSameLogicalType(list(*),list(*))
+  isSameLogicalType(DataNull(), DataNull()).
+  isSameLogicalType(DataBitType(e0), DataBitType(e1)) :- e0 == e1.
+  isSameLogicalType(DataGroupType(s0, _), DataGroupType(s1, _)) :- {ps0 ps1 types0 types1}
+//    nestedLogicalTypeInScope(s0) == ps0,
+//    nestedLogicalTypeInScope(s1) == ps1,
+//    logicalTypeSearchResultsToType(ps0) == types0,
+//    logicalTypeSearchResultsToType(ps1) == types1,
+//    isSameLogicalTypes(types0, types1).
+    s0 == s1. //More complex comparision should be achieved in later version
+  isSameLogicalType(DataUnionType(s0, _), DataUnionType(s1, _)) :- {ps0 ps1 types0 types1}
+//    nestedLogicalTypeInScope(s0) == ps0,
+//    nestedLogicalTypeInScope(s1) == ps1,
+//    logicalTypeSearchResultsToType(ps0) == types0,
+//    logicalTypeSearchResultsToType(ps1) == types1,
+//    isSameLogicalTypes(types0, types1).
+    s0 == s1.//More complex comparision should be achieved in later version
+  isSameLogicalType(DataStreamType(logicalType0, e0), DataStreamType(logicalType1, e1)) :-
+    isSameLogicalType(logicalType0, logicalType1) | error $[Mismatch: Type [logicalType0] != type [logicalType1] ],
+    e0 == e1 | error $[Dimension mismatch: [e0] != type [e1] ].
+
+///////////////////////////////////////////// logical stream properties /////////////////////////////////////////////
+  addStreamProperty : scope * StreamProperty
+  addStreamProperties maps addStreamProperty(*,list(*))
+  
+  allowStreamDimension : TYPE
+  allowStreamDimension(Int()).
+  addStreamProperty(streamScope, Dimension(e)) :- {T}
+    typeOfExp(streamScope, e) == T,
+    allowStreamDimension(T),
+    declareConst(streamScope, "!d", T).
+  
+  allowStreamUserType : LOGICAL_DATA_TYPE
+  allowStreamUserType(DataNull()).
+  allowStreamUserType(DataBitType(_)).
+  allowStreamUserType(DataGroupType(_,_)).
+  allowStreamUserType(DataUnionType(_,_)).
+  addStreamProperty(streamScope, UserType(t)) :- {T}
+    typeOfLogicalType(streamScope, t) == T,
+    allowStreamUserType(T),
+    declareNestedLogicalType(streamScope, "!u", T).
+  
+  allowStreamThroughput : TYPE
+  allowStreamThroughput(Int()).
+  allowStreamThroughput(Float()).
+  addStreamProperty(streamScope, Throughput(e)) :- {T}
+    typeOfExp(streamScope, e) == T,
+    allowStreamThroughput(T),
+    declareConst(streamScope, "!t", T).
+
+  allowStreamSynchronicity : TYPE
+  allowStreamSynchronicity(String()).
+  addStreamProperty(streamScope, Synchronicity(e)) :- {T}
+    typeOfExp(streamScope, e) == T,
+    allowStreamSynchronicity(T),
+    declareConst(streamScope, "!s", T).
+    
+  allowStreamComplexity : TYPE
+  allowStreamComplexity(Int()).
+  addStreamProperty(streamScope, Complexity(e)) :- {T}
+    typeOfExp(streamScope, e) == T,
+    allowStreamComplexity(T),
+    declareConst(streamScope, "!c", T).
+    
+  allowStreamDirection : TYPE
+  allowStreamDirection(String()).
+  addStreamProperty(streamScope, Direction(e)) :- {T}
+    typeOfExp(streamScope, e) == T,
+    allowStreamDirection(T),
+    declareConst(streamScope, "!r", T).
+    
+  allowStreamKeep : TYPE
+  allowStreamKeep(Bool()).
+  addStreamProperty(streamScope, Keep(e)) :- {T}
+    typeOfExp(streamScope, e) == T,
+    allowStreamKeep(T),
+    declareConst(streamScope, "!x", T).
