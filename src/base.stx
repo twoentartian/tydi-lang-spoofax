@@ -22,6 +22,10 @@ signature
     Array : TYPE -> TYPE
     
 rules
+  isSameType : TYPE * TYPE
+  isSameTypes maps isSameType(list(*),list(*))
+  isSameType(T,T).
+
   typeOfBasicType : BasicType -> TYPE
   typeOfBasicType(IntType()) = Int().
   typeOfBasicType(StringType()) = String().

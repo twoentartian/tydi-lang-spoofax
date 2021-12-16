@@ -30,7 +30,7 @@ lexical syntax
   ID = "float" {reject}
   
   ID = "streamlet" {reject}
-  ID = "implement" {reject}
+  ID = "impl" {reject}
   ID = "instance" {reject}
   ID = "process" {reject}
   

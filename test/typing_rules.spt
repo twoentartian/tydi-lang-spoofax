@@ -1,0 +1,295 @@
+module logical_test
+
+test logical type [[
+package test;
+
+const eight = 8;
+
+type bit = Bit(1);
+type byte = Bit(8);
+
+assert type (bit == Bit(1));
+assert type (byte == Bit(8));
+assert type (Bit(64) == Bit(64));
+
+type Group Group0 {
+  a : bit,
+  b : byte,
+  c : Bit(64),
+};
+type Group Group1 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Group Group2 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union Union0 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union0_ = Union0;
+
+assert type (Group0 == Group0);
+assert type (Group1 == Group1);
+assert type (Union0_ == Union0);
+]] analysis succeeds
+
+test logical type [[
+package test;
+
+const eight = 8;
+const nine = eight + 1;
+
+type bit = Bit(1);
+type byte = Bit(8);
+
+assert type (bit == Bit(1));
+assert type (byte == Bit(8));
+assert type (Bit(64) == Bit(64));
+
+type Group Group0 {
+  a : bit,
+  b : byte,
+  c : Bit(64),
+};
+type Group Group1 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Group Group2 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union Union0 {
+  a : Bit(1),
+  b : Bit(8),
+  c : Bit(64),
+};
+
+type Union0_ = Union0;
+
+assert type (Group0 == Group0);
+assert type (Group1 == Group1);
+assert type (Union0_ == Union0);
+
+type stream0 = Stream(Group0, d=nine, t="123456");
+type stream1 = Stream(Group0, d=nine);
+assert type (stream0 == stream1);
+]] analysis succeeds
+
+test small_app [[
+package test;
+
+const flag = true;
+const num_instance = 8;
+const num_stream = 2;
+
+type stream0 = Stream(Bit(4));
+type stream1 = Stream(Bit(8));
+
+streamlet mux2<i:int, t:type> {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_ : stream1 in,
+  
+  in_array : stream0 [num_stream] in,
+  out_array : stream0 [num_stream] out,
+};
+
+impl temp of mux2<8, type Bit(10)> {
+  
+};
+
+impl tmux<n:int, t : type> of mux2<n, type stream0> {
+  instance adders(temp) [8],
+  instance and_gate(temp),
+  
+  and_gate.out => and_gate.in,
+  self.in => self.out,
+  
+  and_gate.out => self.out,
+  self.in => and_gate.in,
+  
+  and_gate.out_array[0] => and_gate.in_array[0],
+  
+  if (flag) {
+    self.in => and_gate.in,
+  }
+  elif (flag) {
+    self.in => and_gate.in,
+  }
+  else{
+    self.in => and_gate.in,
+  }
+  
+  for inst_index in 0-1->num_instance {
+    for stream_index in 0-1->num_stream {
+      adders[inst_index].out_array[stream_index] => adders[inst_index].in_array[stream_index],
+    }
+  }
+  and_gate.out_array[0] => and_gate.in_array[0],
+  
+  process{},
+};
+]] analysis succeeds
+
+test small_app2 [[
+package test;
+
+const flag = true;
+const num_instance = 8;
+const num_stream = 2;
+
+type stream0 = Stream(Bit(4));
+type stream1 = Stream(Bit(8));
+
+streamlet mux2<i:int, t:type> {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_ : stream1 in,
+  
+  in_array : t [num_stream] in,
+  out_array : t [num_stream] out,
+};
+
+streamlet mux3 {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_array : stream0 [num_stream] in,
+  out_array : stream0 [num_stream] out,
+};
+
+streamlet mux4 {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_array : stream0 [num_stream] in,
+  out_array : stream0 [num_stream] out,
+};
+
+impl temp of mux3 {
+  
+};
+
+impl tmux<n: int, ts: impl of mux3> of mux2<n, type stream0> {
+  instance test_inst(ts),
+  
+  test_inst.out => test_inst.in,
+  
+  process{},
+};
+
+impl test of mux2<1,type Bit(1)> {
+  instance test(tmux<1,impl temp>),
+  
+  
+};
+]] analysis succeeds
+
+test small_app2 [[
+package test;
+
+const flag = true;
+const num_instance = 8;
+const num_stream = 2;
+
+type location = Union location_ {
+  x : Bit(32),
+  y : Bit(32),
+};
+
+type stream0 = Stream(Bit(4));
+type stream1 = Stream(Bit(8));
+
+streamlet sl0<i:int, t:type> {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_ : stream1 in,
+  
+  in_array : t [num_stream] in,
+  out_array : t [num_stream] out,
+};
+
+streamlet sl1 {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_array : stream0 [num_stream] in,
+  out_array : stream0 [num_stream] out,
+};
+
+streamlet sl2 {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_array : stream0 [num_stream] in,
+  out_array : stream0 [num_stream] out,
+};
+
+impl temp_impl of sl0<1, type Bit(1)> {
+  
+};
+impl tmux<n: int, ts: impl of sl0<num_instance, type Bit(1)>> of sl0<n, type stream0> {
+  instance test_inst(ts),
+  
+  test_inst.out => test_inst.in,
+  
+  process{},
+};
+impl test of sl0<1, type Bit(1)> {
+  instance inst0(tmux<1, impl test>),
+};
+
+//////////////////////////////REGION2
+
+impl temp_impl2 of sl1 {
+  
+};
+impl tmux2<n: int, ts: impl of sl1> of sl0<n, type stream0> {
+  instance test_inst(ts),
+  
+  test_inst.out => test_inst.in,
+  
+  process{},
+};
+impl test2 of sl1 {
+  instance inst0(tmux2<1,impl temp_impl2>),
+};
+
+
+//////////////////////////////REGION3
+streamlet sl4<i:int> {
+  in : stream0 in,
+  out : stream0 out,
+};
+
+
+impl temp_impl3 of sl4<1> {
+  
+};
+impl tmux3<n: int, ts: impl of sl4<1>> of sl0<n, type stream0> {
+  instance test_inst(ts),
+  test_inst.out => test_inst.in,
+  process{},
+};
+impl test3 of sl1 {
+  instance inst0(tmux3<1,impl temp_impl3>),
+};
+
+]] analysis succeeds

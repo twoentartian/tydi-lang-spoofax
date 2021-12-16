@@ -17,7 +17,9 @@ StreamLetArgs.NoStreamLetArg = <>
 StreamLetArgs.SomeStreamLetArgs = < \< <{Arg ","}+> \> >
 Arg.ArgLogicalType = <<ID> : type>
 Arg.ArgValue = <<ID> : <BasicType>>
-Arg.ArgInstancecType = <<ID> : instance>
+//Arg.ArgInstancecType = <<ID> : instance> //TODO:currently not necessary
+//Arg.ArgStreamletType = <<ID> : streamlet> //TODO:currently not necessary
+Arg.ArgImplementationType = <<ID> : impl of <ID> <ArgExps> >
 
 StreamLetBody.StreamLetPort = < <ID> : <LogicalType> <Direction>,>
 StreamLetBody.StreamLetPortArray = < <ID> : <LogicalType> [ <Exp> ] <Direction>,>
@@ -31,16 +33,18 @@ context-free sorts Implementation ImplementationBody ArgExp ArgExps NetName Logi
 
 context-free syntax
 Implementation.Implementation = <
-implement <ID> <ImplementationArgs> of <ID> <ArgExps> {
+impl <ID> <ImplementationArgs> of <ID> <ArgExps> {
   <ImplementationBody*>
 }
 >
 
-ArgExps.EmptyStreamLetArgExps = <>
-ArgExps.SomeStreamLetArgExps = < \< <{ArgExp ","}+> \> >
+ArgExps.EmptyArgExps = <>
+ArgExps.SomeArgExps = < \< <{ArgExp ","}+> \> >
 ArgExp.ConstExp = Exp
-ArgExp.TypeExp = <typename <LogicalType>>
-ArgExp.InstanceExp = <instance <ID>>
+ArgExp.TypeExp = <type <LogicalType>>
+//ArgExp.InstanceExp = <instance <ID>> //TODO:currently not necessary
+//ArgExp.StreamletExp = <streamlet <ID>> //TODO:currently not necessary
+ArgExp.ImplementExp = <impl <ID> <ArgExps>>
 
 ImplementationArgs.NoImplementationArgs = <>
 ImplementationArgs.ImplementationArgs =  < \< <{Arg ","}+> \> >

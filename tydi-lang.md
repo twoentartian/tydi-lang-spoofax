@@ -1,5 +1,7 @@
 # Tydi language specification (pocket edition)
 
+The source code of Tydi lang front end ([Spoofax](https://www.spoofax.dev/) prototype version) is available [here](https://github.com/twoentartian/tydi-lang-spoofax).
+
 ## Literals
 
 ### Comment
@@ -198,7 +200,7 @@ const b = 5 + int_array; // a = {5,0,1,2,3,4}, append 5 at the begin of the arra
 
 ### Const data operation across types
 
-Tydi-lang also provides limited auto conversion between different const data types. For example, appending an integer or bool at the end of a string is possible.
+Tydi-lang also provides limited auto conversion between different const data types. For example, appending an integer or bool to a string is possible.
 
 ```cpp
 const str0 = " hello ";
@@ -212,3 +214,385 @@ const str3 = flag + str0; //str1 = "true hello"
 
 ## Logical data type
 
+In Tydi-lang, you can define 5 logical types to represent the data structure. The details of each logical types are available in the Tydi [paper](https://ieeexplore-ieee-org.tudelft.idm.oclc.org/document/9098092) and [specification]([Logical streams - Tydi (abs-tudelft.github.io)](https://abs-tudelft.github.io/tydi/specification/logical.html)). The most important idea to describe complex data structures in Tydi-lang is using type alias. For example, ``` type a=b``` defines an alias "a" for type "b". 
+
+### Null
+
+```cpp
+type null = Null;//we make an alias of type Null, Null itself represents the logical Null type.
+```
+
+### Bit
+
+```cpp
+type byte = Bit(8);//define byte as Bit(8)
+```
+
+### Group
+
+Syntax:
+
+```cpp
+GROUP_TYPE = Group <ID> {
+  <TYPE_ITEM+>
+}
+
+TYPE_ITEM = <ID> : <TYPE> ,
+```
+A Group example:
+```cpp
+type location = Group location_ {
+  x : Bit(32),
+  y : Bit(32),
+};
+```
+For simplicity, you can directly define a Group type without using alias.
+
+```cpp
+type Group location {
+  x : Bit(32),
+  y : Bit(32),
+};
+```
+
+### Union
+
+Union has a similar syntax as the Group syntax.
+
+```cpp
+UNION_TYPE = Union <ID> {
+  <TYPE_ITEM+>
+}
+
+TYPE_ITEM = <ID> : <TYPE> ,
+```
+
+An Union example:
+
+```cpp
+type location = Union location_ {
+  x : Bit(32),
+  y : Bit(32),
+};//type alias form
+
+type Union location {
+  x : Bit(32),
+  y : Bit(32),
+};//without type alias
+```
+
+### Stream
+
+Stream type can be defined by following syntax:
+
+```cpp
+Stream ( <LOGICAL_TYPE> <STREAM_OPTION*> )
+STREAM_OPTION = , d = <Exp> //define the dimension, the Exp must be an integer. Default: 0
+STREAM_OPTION = , u = <LOGICAL_TYPE> //define the user type, the LOGICAL_TYPE should be a Null, Bit, Group, Union or a composite of them (including an type alias). Default: Null
+STREAM_OPTION = , t = <Exp> //define the throughput, the Exp must be a float. Default: 1
+STREAM_OPTION = , s = <Exp> //define the synchronicity, the Exp must be a string. From Tydi specification, the available options are "Sync", "Flatten", "Desync" and "FlatDesync". Default: "Sync"
+STREAM_OPTION = , c = <Exp> //define the complexity, the Exp must be an integer. Default: 7 (highest)
+STREAM_OPTION = , r = <Exp> //define the direction, the Exp must be a string. Available options are "Forward" and "Reverse". Default: Forward
+STREAM_OPTION = , x = <Exp> //define the keep, the Exp must be a Bool. Default: False
+```
+
+Some examples about Stream:
+
+```cpp
+type stream0 = Stream(Bit(4));
+type stream1 = Stream(Bit(4), d=2, c=6);
+```
+
+### Composite Examples
+
+A small example to define a composite logical data structure:
+
+```cpp
+type byte = Bit(8);
+type word = Stream(byte, d=1);
+type sentence = Stream(word, d=1);
+
+type color_depth = Bit(10);
+type Group pixel {
+  r : color_depth,
+  g : color_depth,
+  b : color_depth,
+};
+type pixel_stream = Stream(pixel, d=2);
+```
+
+## Streamlet
+
+In Tydi-lang, streamlet describes the port of a component. Similar to the "entity" concept in VHDL(without the generic list).
+
+#### Syntax
+
+```cpp
+streamlet <ID> {
+  <STREAMLET_PORT> ,
+}
+STREAMLET_PORT = <ID> : <LOGICAL_TYPE> <DIR> //define a single port, the LOGICAL_TYPE must be a stream type
+STREAMLET_PORT = <ID> : <LOGICAL_TYPE> [ <Exp> ] <DIR> // define an array of port, the Exp must be an integer
+DIR = "in"
+DIR = "out"
+```
+
+An example:
+
+```cpp
+package test; // define the package of the file
+const num_stream = 2;
+type stream0 = Stream(Bit(4));
+
+streamlet test {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_array : stream0 [num_stream] in, //define 2 input ports of stream0
+  out_array : stream0 [num_stream] out, //define 2 output ports of stream0
+};
+```
+
+#### Streamlet template
+
+Streamlet template can use logical types and const values as arguments to define a streamlet. This method is an abstraction of streamlet and will be useful in writing some libraries when library designers don't know how use will use it.
+
+```cpp
+streamlet demux <mux_output:int> {
+  in : Stream(Bit(1)) in,
+  out : Stream(Bit(1)) [mux_output] out,
+  
+  select : Stream(Bit(ceil(log 2(mux_output)))) in,
+}; // a demux with <mux_output> output ports
+
+streamlet demux_data <t:type, mux_output:int> {
+  in : Stream(t) in,
+  out : Stream(t) [mux_output] out,
+  
+  select : Stream(Bit(ceil(log 2(mux_output)))) in,
+}; // t is a logical type
+```
+
+A streamlet template can be instantiate by the following form.
+
+```cpp
+demux<1>
+const num = 2;
+demux<num> //demux<2> is different from demux<1> because they might have completely different port layout.
+demux_data<type Bit(8), 2> //for template type arguments, you need to prefix a "type" to avoid syntax ambiguous (it also might be a const)
+```
+
+## Implement
+
+Implement describes the internal layout (connections, sub components, etc) of a streamlet.
+
+```cpp
+package test; // define the package of the file
+
+type stream0 = Stream(Bit(4));
+
+streamlet child {
+  in : stream0 in,
+  out : stream0 out,
+}; // suppose we have a streamlet called child and its implement is temp
+
+impl temp of child {
+  //...
+};
+
+//now we want to describe a parent with following streamlet which contains 2 child streamlet.
+streamlet parent {
+  in : stream0 [2] in,
+  out0 : stream0 out,
+  out1 : stream0 out,
+};
+
+impl parent1 of parent {
+  instance childs(temp) [2], //declare two "childs" instances with "impl temp", the port of "childs" instance will be infered from the streamlet "child"
+  
+  childs[0].out => self.out0, // connect the "out" of first child to "out0" of parent1
+  childs[1].out => self.out1,
+  
+  for x in 0-1->2 {
+    self.in[x] => childs[x].in, //use for loop to describe connections
+  }
+  
+  process{},
+};
+```
+
+#### Reference system
+
+In the above code, each port reference will be bind to its declaration. I use [<Number>[[<ID>]]] to represent their reference relationship where same number indicates they are referenced together.
+
+```cpp
+package test; // define the package of the file
+
+type [0[[stream0]]] = Stream(Bit(4));
+
+streamlet child {
+  [1[[in]]] : [0[[stream0]]] in,
+  [2[[out]]] : [0[[stream0]]] out,
+};
+
+impl temp of child {
+  //...
+};
+
+streamlet parent {
+  [3[[in]]] : stream0 [2] in,
+  [4[[out0]]] : stream0 out,
+  [5[[out1]]] : stream0 out,
+};
+
+impl parent1 of parent {
+  instance childs(temp) [2], 
+  
+  childs[0].[2[[out]]] => self.[4[[out0]]], //the self will be resolved to the "parent" streamlet
+  childs[1].[2[[out]]] => self.[5[[out1]]],
+  
+  for x in 0-1->2 {
+    self.[3[[in]]][x] => childs[x].[1[[in]]],
+  }
+  
+  process{},
+};
+```
+
+#### Declare connection
+
+Two ports can only be connected only if they meet following rules:
+
+- connect from an "output" port to an "input" port. The direction of the port is determined by its relative direction rather than the direction on the code. For example, the relative direction of an output port for a inner instance is "output", while an output port of the implement itself should be "input".eg.```childs[1].[2[[out]]] => self.[5[[out1]]],```
+- The two port must have the same logical data type
+
+
+  Current prototype version only supports checking above two rules, the following rules only apply to future Tydi-lang version. TODO
+
+- For stream type a => stream type b, the Dimension, the UserType and the ElementLane should equal.
+- The source complexity should be smaller than sink complexity.
+
+
+#### Declare connection with delay
+
+```cpp
+childs[0].out =4=> self.out0, // the "out" signal will arrive "out0" after 4 time unit.(As for what is the time unit, it can be clock cycle or data sample (achieve by an FIFO), maybe we need more discussions here)
+```
+
+#### Control block
+
+Tydi-lang provides two mechanisms to control the layout of an implement.
+
+```cpp
+package test; // define the package of the file
+
+const flag = true;
+const num_instance = 8;
+const num_stream = 2;
+
+type stream0 = Stream(Bit(4));
+type stream1 = Stream(Bit(8));
+
+streamlet mux2<i:int, t:type> {
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_ : stream1 in,
+  
+  in_array : stream0 [num_stream] in,
+  out_array : stream0 [num_stream] out,
+};
+
+impl temp of mux2<8, type Bit(10)> {
+  
+};
+
+impl tmux<n:int, t : type> of mux2<n, type stream0> {
+  instance adders(temp) [8],
+  instance and_gate(temp),
+  
+  and_gate.out => and_gate.in,
+  self.in => self.out,
+  
+  and_gate.out => self.out,
+  self.in => and_gate.in,
+  
+  and_gate.out_array[0] => and_gate.in_array[0],
+  
+  if (flag) { // if block, the if Exp is a bool expression
+    self.in => and_gate.in,
+  }
+  elif (flag) { // else if block, the if Exp is a bool expression
+    self.in => and_gate.in,
+  }
+  else{ // else block, the if Exp is a bool expression
+    self.in => and_gate.in,
+  }
+  
+  for inst_index in 0-1->num_instance {
+    for stream_index in 0-1->num_stream {
+      adders[inst_index].out_array[stream_index] => adders[inst_index].in_array[stream_index],
+    }
+  }
+  and_gate.out_array[0] => and_gate.in_array[0],
+  
+  process{}, // just a place holder
+};
+```
+
+## Implement Template
+
+Similarly to streamlet, you can also use an implement which is not yet defined to construct a new implement. Here is an example.
+
+```cpp
+package test;
+
+const flag = true;
+const num_instance = 8;
+const num_stream = 2;
+
+type stream0 = Stream(Bit(4));
+
+streamlet sl0<i:int, t:type> { //define a streamlet with templates: {int, type}
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_array : t [num_stream] in,
+  out_array : t [num_stream] out,
+};
+
+streamlet sl1 { //define a streamlet without templates
+  in : stream0 in,
+  out : stream0 out,
+  
+  in_array : stream0 [num_stream] in,
+  out_array : stream0 [num_stream] out,
+};
+
+impl temp_impl of sl0<num_stream, type Bit(1)> { //implement temp_impl of sl0<2, type Bit(1)>
+  
+};
+impl tmux<n: int, ts: impl of sl0<num_instance, type Bit(1)>> of sl0<n, type stream0> { // here we define ts, which is an implementation of sl0<2, type Bit(1)> but don't specify the implementation.
+  instance test_inst(ts), // define an instance of ts, the port layout will be resolved in the streamlet sl0 scope
+  
+  test_inst.out => test_inst.in,
+  
+  process{},
+};
+impl test of sl0<2, type Bit(1)> {
+  instance inst0(tmux<1, impl test>), //because tmux is an implement template, and test is an implement of sl0<2, type Bit(1)>, so it's acceptable here. TODO: But "impl test" uses "self" as a template argument which is not allowed. Current Tydi-lang didn't check it but the restriction will be applied in the future.
+};
+```
+
+#### Template arguments checking rules
+
+```cpp
+impl implement<ts: impl of [STREAMLET_NAME1]> of [STREAMLET_NAME2]
+//ts will be an abstract implement type
+//when instantiating the implement, the "ts" must be an implement of [STREAMLET_NAME1]. If the [STREAMLET_NAME1] is an instantiated streamlet, the "ts" also have the same streamlet template arguments.
+```
+## Tydi-lang front end
+
+All streamlet, implement templates will not present in the final Tydi IR. All transformations will be carried on by the following procedures (for future Rust version).
+
+![tydi-lang_front_end](D:\git\tydi-lang-spoofax\tydi-lang_front_end.drawio.png)

@@ -120,7 +120,7 @@ streamlet demux<N:int, DATATYPE : type> {
 };
 
 // define an implementation for a streamlet
-implement adder_8b <n:int> of adder<8> {
+impl adder_8b <n:int> of adder<8> {
   process{},
 };
 
@@ -133,7 +133,7 @@ streamlet adder_4 {
   out : Bit(8) out,
 };
 
-implement adder_4port_8bit of adder_4port<8> {
+impl adder_4port_8bit of adder_4port<8> {
   instance adder_1(adder_8b),
   instance adder_2(adder_8b),
   instance adder_3(adder_8b),
@@ -149,7 +149,7 @@ implement adder_4port_8bit of adder_4port<8> {
   process{},
 };
 
-implement adder_8bit of adder<8> {
+impl adder_8bit of adder<8> {
   instance adder_1(adder_8b),
   instance adder_2(adder_8b),
   instance adder_3(adder_8b),
@@ -165,7 +165,7 @@ implement adder_8bit of adder<8> {
   process{},
 };
 
-implement adder_4_3adders of adder_4 {
+impl adder_4_3adders of adder_4 {
   instance adders(adder_8b) [3],
   
   self.a => adders[0].a,
@@ -184,7 +184,7 @@ implement adder_4_3adders of adder_4 {
 test if_for [[
 package test;
 
-implement adder_4_3adders<flag:bool> of adder_4 {
+impl adder_4_3adders<flag:bool> of adder_4 {
     instance adders(adder_8b) [3],
   
     self.a => adders[0].a,
@@ -221,7 +221,7 @@ implement adder_4_3adders<flag:bool> of adder_4 {
 test clock_domain [[
 package test;
 
-implement adder_4_3adders<flag:bool> of adder_4 {
+impl adder_4_3adders<flag:bool> of adder_4 {
   
 };
 
@@ -240,7 +240,7 @@ streamlet adder<N : int> {
 };
 
 // define an implementation for a streamlet
-implement adder_8b <n:int> of adder<8> {
+impl adder_8b <n:int> of adder<8> {
   process{},
 };
 
@@ -251,7 +251,7 @@ streamlet adder <N: int> {
   global_overflow : Bit(1) out,
 };
 
-implement adder_ <N:int> of adder <N> {
+impl adder_ <N:int> of adder <N> {
   instance adders(adder_8b) [N ./ 2],
   instance and_gate(std_and_gate<N ./ 2>),
   for i in 0-1->N./2 {
@@ -275,7 +275,7 @@ streamlet adder<N:int> {
   overflow : Bit(1) out,
 };
 
-implement adder_ <N:int> of adder <N> {
+impl adder_ <N:int> of adder <N> {
   instance adders(adder_8b) [N ./ 2],
   instance and_gate(std_and_gate<N ./ 2>),
   for i in 0-1->N./2 {
@@ -294,7 +294,7 @@ implement adder_ <N:int> of adder <N> {
 test instance [[
 package test;
 
-implement adder_ <N:int> of adder <N> {
+impl adder_ <N:int> of adder <N> {
   instance adders(adder_8b) [N ./ 2],
   instance and_gate(std_and_gate<N ./ 2>),
   for i in 0-1->N./2 {
@@ -330,7 +330,7 @@ streamlet process_unit<inputT:type, outputT:type> {
   output : outputT out,
 };
 
-implement process_unit_0<inputT:type, outputT:type, delay:int> of process_unit<inputT> {
+impl process_unit_0<inputT:type, outputT:type, delay:int> of process_unit<inputT> {
   instance single_PU(PU) [delay],
   instance demux(std_demux<inputT, delay>),
   instance mux(std_mux<outputT, delay>),

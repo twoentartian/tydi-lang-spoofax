@@ -12,21 +12,30 @@ signature
     Out : PORT_DIRECTION
     
     StreamLetType : scope * ID * list(TYPE) -> TYPE
+    EmptyStreamletType : TYPE
+    
     ImplementationType : scope * ID * list(TYPE) -> TYPE
+    AnyImplementationOfStreamletType : TYPE -> TYPE
+    EmptyImplmentationType : TYPE
+    
     InstanceType : ID * TYPE -> TYPE
     EmptyInstanceType : TYPE
     
     PortType : ID * LOGICAL_DATA_TYPE * PORT_DIRECTION -> TYPE
-    PortArrayType : ID * LOGICAL_DATA_TYPE * PORT_DIRECTION -> TYPE
+    EmptyPortType : TYPE
 rules
 ///////////////////////////////////////////// declare streamlet /////////////////////////////////////////////
+  isSameType(StreamLetType(_, name0, _), StreamLetType(_, name1, _)) :-
+    name0 == name1.
+
   streamletOk : scope * StreamLet
   streamletOk(s, StreamLet(x, args, bodys)) :- {streamletScope streamletType argTypes}
     new streamletScope, streamletScope -StreamletScope-> s,
     streamletType == StreamLetType(streamletScope, x, argTypes),
     streamletArgsToTypes(s, streamletScope, args) == argTypes,
     declareStreamlet(s, x, streamletType),
-    streamletBodysOk(streamletScope, bodys).
+    streamletBodysOk(streamletScope, bodys),
+    declareID(streamletScope, "!streamletName", x).
   
   streamletArgsToTypes : scope * scope * StreamLetArgs -> list(TYPE)
   streamletArgsToTypes(s, streamletS, NoStreamLetArg()) = [].
@@ -39,8 +48,14 @@ rules
   argToType(s, ArgLogicalType(x)) = EmptyLogicalDataType().
   argToType(s, ArgValue(x, basicT)) = T :-
     typeOfBasicType(basicT) == T.
-  argToType(s, ArgInstancecType(x)) = EmptyInstanceType().
-  
+  //argToType(s, ArgInstancecType(x)) = EmptyInstanceType(). //TODO:currently not necessary
+  //argToType(s, ArgStreamletType(x)) = EmptyStreamletType(). //TODO:currently not necessary
+  argToType(s, ArgImplementationType(implX, streamletX, argExps)) = T :- {streamletT streamletS streamletArgTypes}
+    typeOfStreamletRef(s, streamletX) == streamletT@StreamLetType(streamletS, streamletX, streamletArgTypes),
+    //Folloing line is commented due to a Spoofax Bug here, this logic seems all right from debug view but accidently throws an error
+    //verifyArgExps(s, argExps, streamletArgTypes) | error $[56 Template args mismatch. [streamletT] [argExps] [streamletArgTypes]],
+    AnyImplementationOfStreamletType(streamletT) == T.
+    
   declareArg : scope * Arg
   declareArgs maps declareArg(*,list(*))
   declareArg(s, ArgLogicalType(x)) :-
@@ -48,8 +63,13 @@ rules
   declareArg(s, ArgValue(x, basicT)) :- {T}
     typeOfBasicType(basicT) == T,
     declareConst(s, x, T).
-  declareArg(s, ArgInstancecType(x)) :-
-    declareInstance(s, x, EmptyInstanceType()).
+  /*declareArg(s, ArgInstancecType(x)) :-
+    declareInstance(s, x, EmptyInstanceType()).*/ //TODO:currently not necessary
+  /*declareArg(s, ArgStreamletType(x)) :-
+    declareImplement(s, x, EmptyStreamletType()).*/ //TODO:currently not necessary
+  declareArg(s, arg@ArgImplementationType(implX, streamletX, argExps)) :- {T}
+    argToType(s, arg) == T,
+    declareImplement(s, implX, T).
   
   allowStreamletPortType : LOGICAL_DATA_TYPE
   allowStreamletPortType(EmptyLogicalData()).//used for template streamlet args.
@@ -63,48 +83,58 @@ rules
   streamletBodyOk(streamletS, StreamLetPortArray(x, logicalT, lenExp, dir)) :- {T}
     typeOfLogicalType(streamletS, logicalT) == T,
     allowStreamletPortType(T) | error $[[T] must a stream type],
-    declarePort(streamletS, x, T, dirOf(dir)),
+    declarePortArray(streamletS, x, T, dirOf(dir)),
     typeOfExp(streamletS, lenExp) == Int().
     
   dirOf : Direction -> PORT_DIRECTION
   dirOf(DirIn()) = In().
   dirOf(DirOut()) = Out().
+  toggleDir : PORT_DIRECTION -> PORT_DIRECTION
+  toggleDir(In()) = Out().
+  toggleDir(Out()) = In().
   
 ///////////////////////////////////////////// declare implementation /////////////////////////////////////////////
   implementationOk : scope * Implementation
   implementationOk(s,Implementation(x, args, streamletX, streamletArgExps, implBody)) :- {implementationScope implmentationType argTypes streamletT streamletArgTypes streamletS}
     new implementationScope, implementationScope -ImplementationScope-> s,
     implmentationType == ImplementationType(implementationScope, x, argTypes),
-    implmentationArgsToTypes(s, implementationScope, args) == argTypes,
+    implmentationArgsToTypes(implementationScope, implementationScope, args) == argTypes,
     implementationBodysOk(implementationScope, implBody),
     typeOfStreamletRef(implementationScope, streamletX) == StreamLetType(streamletS,streamletX,streamletArgTypes),
-    verifyArgExps(implementationScope, streamletArgExps, streamletArgTypes),
+    verifyArgExps(implementationScope, streamletArgExps, streamletArgTypes) | error $[Template args mismatch.],
     declareInstance(implementationScope, "self", InstanceType("self",implmentationType)),
     declareConst(implementationScope, "!streamlet", StreamLetType(streamletS, streamletX, streamletArgTypes)),
+    declareID(implementationScope, "!streamletName", streamletX),
+    declareID(implementationScope, "!impl_name", x),
     declareImplement(s, x, implmentationType).
   
   verifyArgExps : scope * ArgExps * list(TYPE)
-  verifyArgExps(s, EmptyStreamLetArgExps(), []).
-  verifyArgExps(s, SomeStreamLetArgExps(argExps), types) :- 
-    verifyArgExps_(s, argExps, types).
+  verifyArgExps(s, EmptyArgExps(), []).
+  verifyArgExps(s, SomeArgExps(argExps), types) :- 
+    verifyArgExps_(s, argExps, types) .
   
   allowArgPassing : TYPE * TYPE
   allowArgPassing(T,T).
   allowArgPassing(LogicalDataType(_),EmptyLogicalDataType()).
   allowArgPassing(InstanceType(_,_),EmptyInstanceType()).
+  allowArgPassing(ImplementationType(implS,implName,implArgs),AnyImplementationOfStreamletType(StreamT)) :- {streamletX streamletArgs}
+    resolveID(implS, "!streamletName") == [(_,(_,streamletX))],
+    StreamT == StreamLetType(_, streamletX, streamletArgs) | error $[the instance template is not same as the required template].
   
   verifyArgExp : scope * ArgExp * TYPE
   verifyArgExps_ maps verifyArgExp(*,list(*),list(*))
   verifyArgExp(s, ConstExp(e), t) :- {argT}
-    argT == typeOfExp(s,e),
-    allowArgPassing(argT,t) | error $[Arg type mismatch(const), argT: [argT] expected: [t] ].
+    typeOfExp(s,e) == argT | error $[127 Arg type mismatch(const), exp: [e] argT: [argT] expected: [t] in scope [s] ],
+    allowArgPassing(argT,t) | error $[128 Arg type mismatch(const), exp: [e] argT: [argT] expected: [t] in scope [s] ].
   verifyArgExp(s, TypeExp(e), t) :- {logicalT argT}
-    typeOfLogicalType(s,e) == logicalT,
-    LogicalDataType(logicalT) == argT,
-    allowArgPassing(argT,t) | error $[Arg type mismatch(logical datatype), argT: [argT] expected: [t] ].
-  verifyArgExp(s, InstanceExp(x), t) :- {argT}
-    argT == typeOfImplementRef(s,x),
-    allowArgPassing(argT, t) | error $[Arg type mismatch(instancec), argT: [argT] expected: [t] ].
+    typeOfLogicalType(s,e) == logicalT | error $[130 Arg type mismatch(logical datatype), argT: [argT] expected: [t] ],
+    LogicalDataType(logicalT) == argT | error $[131 Arg type mismatch(logical datatype), argT: [argT] expected: [t] ],
+    allowArgPassing(argT,t) | error $[132 Arg type mismatch(logical datatype), argT: [argT] expected: [t] ].
+  verifyArgExp(s, ImplementExp(x, argExps), t) :- {argT implArgs implT implS}
+    implT == typeOfImplementRef(s,x) | error $[134 [implT] [argExps] [implArgs]],
+    implT == ImplementationType(implS,x,implArgs) | error $[135 [implT] [argExps] [implArgs]],
+    verifyArgExps(s, argExps, implArgs) | error $[136 Arg type mismatch(implement), argT: [argT] expected: [t] ],
+    allowArgPassing(implT, t) | error $[137 Arg type mismatch(implement), argT: [argT] expected: [t] ].
   
   implmentationArgsToTypes : scope * scope * ImplementationArgs -> list(TYPE)
   implmentationArgsToTypes(s, implementationS, NoImplementationArgs()) = [].
@@ -112,40 +142,121 @@ rules
     types == argsToTypes(s, args),
     declareArgs(implementationS, args).
   
-  notSameID : ID * ID
-  notSameID(x,x) :- false.
-  notSameID(x,y).
-  
   checkNonNestedSelfInstance : scope * ID
-  checkNonNestedSelfInstance(implS, implName) :- {implX}
-    typeOfInstanceRefInCurrentScope(implS, "self") == InstanceType(_, ImplementationType(_, implX, _)) ,
-    notSameID(implX, implName).
+  checkNonNestedSelfInstance(implS, targetImplx) :- {v}
+    resolveID(implS, "!impl_name") == [(_,(_,v))|_] | error $[Cannot use an implementation in its definition.],
+    v != targetImplx | error $[Cannot use an implementation in its definition.].
   
   implementationBodyOk : scope * ImplementationBody
   implementationBodysOk maps implementationBodyOk(*,list(*))
+  
+  allowInstanceOf : scope * TYPE * ID * ID * ArgExps
+  allowInstanceOf(implS, implT@ImplementationType(targetImplS, implName, targetImplArgTypes), instX, implName, implArgs) :-
+    checkNonNestedSelfInstance(implS, implName),
+    verifyArgExps(implS, implArgs, targetImplArgTypes) | error $[Template args mismatch.].
+  allowInstanceOf(implS, implT@AnyImplementationOfStreamletType(streamletT), instX, implName, implArgs) :- {streamletArgTypes}
+    checkNonNestedSelfInstance(implS, implName).
+  
   implementationBodyOk(implS, DeclareInstance(instX, implName, implArgs)) :- {targetImplS targetImplArgTypes implT}
     typeOfImplementRef(implS, implName) == implT,
-    implT == ImplementationType(targetImplS, implName, targetImplArgTypes),
-    declareInstance(implS, instX, InstanceType(instX,implT)),
-    verifyArgExps(implS, implArgs, targetImplArgTypes),
-    checkNonNestedSelfInstance(implS, implName) | error $[Cannot use an implementation in its defination scope].
+    allowInstanceOf(implS, implT, instX, implName, implArgs),
+    declareInstance(implS, instX, InstanceType(instX,implT)).
     
   implementationBodyOk(implS, DeclareInstanceArray(instX, implName, implArgs, size)) :- {targetImplS targetImplArgTypes implT}
     typeOfImplementRef(implS, implName) == implT,
-    implT == ImplementationType(targetImplS, implName, targetImplArgTypes),
+    allowInstanceOf(implS, implT, instX, implName, implArgs),
     declareInstance(implS, instX, Array(InstanceType(instX,implT))),
-    verifyArgExps(implS, implArgs, targetImplArgTypes),
-    checkNonNestedSelfInstance(implS, implName) | error $[Cannot use an implementation in its defination scope],
     typeOfExp(implS, size) == Int().
   
-  implementationBodyOk(implS, DeclareNet(leftPort, rightPort, netName)).
-  implementationBodyOk(implS, DeclareDelayedNet(leftPort, delay, rightPort, netName)).
+  findPortInImpl : scope * TYPE * ID -> TYPE
+  findPortInImpl(s, implType@ImplementationType(implScope, implName, _), x) = T :- {streamletScope}
+    getConst(implScope, "!streamlet") == (_,StreamLetType(streamletScope, _, _),_),
+    typeOfPortRef(streamletScope, x) == T.
+  findPortInImpl(s, implType@AnyImplementationOfStreamletType(streamletType), x) = T :- {streamletScope}
+    streamletType == StreamLetType(streamletScope,_,_),
+    typeOfPortRef(streamletScope, x) == T.
+  findPortInImpl(s, implType@EmptyImplmentationType(), x) = EmptyPortType().
+  findPortInImpl(s, implType@EmptyStreamletType(), x) = EmptyPortType().//for streamlet template in impl
   
-  implementationBodyOk(implS, IfBlock(ifExp,implBody,elif,else)).
-  implementationBodyOk(implS, ForBlock(x,arrayExp,implBody)).
+  typeOfLogicalTypeSlice : scope * LogicalTypeSlice -> TYPE
+  typeOfLogicalTypeSlice(s, LogicalTypeSlice(x)) = T :-
+    typeOfInstanceRef(s, x) == T.
+  typeOfLogicalTypeSlice(s, AccessIndex(x,index)) = T :-
+    typeOfLogicalTypeSlice(s,x) == Array(T),
+    typeOfExp(s,index) == Int().
+  typeOfLogicalTypeSlice(s, SubLogicalTypeSlice(parent,x)) = T :- {instName implType}
+    typeOfLogicalTypeSlice(s,parent) == InstanceType(instName,implType),
+    findPortInImpl(s,implType,x) == T.
+    
+  instanceNameOfLogicalSlice : scope * LogicalTypeSlice -> ID
+  instanceNameOfLogicalSlice(s, SubLogicalTypeSlice(parent,x)) = instName :- {implType}
+    typeOfLogicalTypeSlice(s,parent) == InstanceType(instName,implType).
+  instanceNameOfLogicalSlice(s, AccessIndex(x,index)) = instName :-
+    instanceNameOfLogicalSlice(s,x) == instName.
   
+  allowLogicalConnect_ : LOGICAL_DATA_TYPE * LOGICAL_DATA_TYPE
+  allowLogicalConnect_(T,T).
+  allowLogicalConnect : TYPE * TYPE
+  allowLogicalConnect(LogicalDataType(T0),LogicalDataType(T1)):-
+    allowLogicalConnect_(T0,T1).
+  
+  getRelativePortDirection : ID * PORT_DIRECTION -> PORT_DIRECTION
+  getRelativePortDirection(x, dir) = outputDir :-
+    dir == outputDir.
+  getRelativePortDirection("self", dir) = outputDir :-
+    toggleDir(dir) == outputDir.
+    
+  checkLeftPortDirection : PORT_DIRECTION
+  checkLeftPortDirection(Out()).
+  checkRightPortDirection : PORT_DIRECTION
+  checkRightPortDirection(In()).
+  
+  checkNetName : scope * NetName
+  checkNetName(implS, EmptyNetName()).
+  checkNetName(implS, NetName(name)) :-
+    typeOfExp(implS, name) == String().
+  
+  checkNetOk : scope * TYPE * TYPE * ID * ID
+  checkNetOk(implS, leftPort@PortType(lPortName, lPortT, lPortDir), rightPort@PortType(rPortName, rPortT, rPortDir),lInstName,rInstName) :- 
+    allowLogicalConnect_(lPortT, rPortT) | error $[Not same logical data type],
+    checkLeftPortDirection(getRelativePortDirection(lInstName,lPortDir)) | error $[Dataflow direction is not correct],
+    checkRightPortDirection(getRelativePortDirection(rInstName,rPortDir)) | error $[Dataflow direction is not correct].
+  checkNetOk(implS, leftPort@EmptyPortType(), rightPort@PortType(rPortName, rPortT, rPortDir),lInstName,rInstName) :- 
+    checkRightPortDirection(getRelativePortDirection(rInstName,rPortDir)) | error $[Dataflow direction is not correct].
+  checkNetOk(implS, leftPort@PortType(lPortName, lPortT, lPortDir), rightPort@EmptyPortType(),lInstName,rInstName) :- 
+    checkLeftPortDirection(getRelativePortDirection(lInstName,lPortDir)) | error $[Dataflow direction is not correct].
+  checkNetOk(implS, leftPort@EmptyPortType(), rightPort@EmptyPortType(),lInstName,rInstName).
+  
+  implementationBodyOk(implS, DeclareNet(leftPort, rightPort, netName)) :- {lp rp lInstName rInstName}
+    typeOfLogicalTypeSlice(implS, leftPort) == lp,
+    typeOfLogicalTypeSlice(implS, rightPort) == rp,
+    instanceNameOfLogicalSlice(implS, leftPort) == lInstName,
+    instanceNameOfLogicalSlice(implS, rightPort) == rInstName,
+    checkNetOk(implS, lp, rp, lInstName, rInstName),
+    checkNetName(implS, netName).
+    
+  implementationBodyOk(implS, DeclareDelayedNet(leftPort, delay, rightPort, netName)) :- {lp rp lInstName rInstName}
+    typeOfLogicalTypeSlice(implS, leftPort) == lp,
+    typeOfLogicalTypeSlice(implS, rightPort) == rp,
+    instanceNameOfLogicalSlice(implS, leftPort) == lInstName,
+    instanceNameOfLogicalSlice(implS, rightPort) == rInstName,
+    checkNetOk(implS, lp, rp, lInstName, rInstName),
+    checkNetName(implS, netName),
+    typeOfExp(implS, delay) == Int().
+  
+  implementationBodyOk(implS, IfBlock(ifExp,implBody,elifs,else)) :-
+    typeOfExp(implS, ifExp) == Bool(),
+    implementationBodysOk(implS, implBody),
+    elifsOk(implS, elifs),
+    elseOk(implS, else).
+    
+  implementationBodyOk(implS, ForBlock(x,arrayExp,implBody)) :- {T}
+    typeOfExp(implS, arrayExp) == Array(T),
+    declareConst(implS, x, T),
+    implementationBodysOk(implS, implBody).
   
   elifOk : scope * ElifBlock
+  elifsOk maps elifOk(*,list(*))
   elifOk(implS, ElifBlock(e,implBody)) :-
     implementationBodysOk(implS, implBody),
     typeOfExp(implS, e) == Bool().
@@ -154,6 +265,8 @@ rules
   elseOk(implS, EmptyElseBlock()).
   elseOk(implS, ElseBlock(implBody)) :-
     implementationBodysOk(implS, implBody).
+    
+  implementationBodyOk(implS, DeclareProcess()).//TODO: check the type rule of the process
   
 ///////////////////////////////////////////// new streamlet /////////////////////////////////////////////
 signature
@@ -203,7 +316,7 @@ rules
   
   declarePortArray : scope * ID * LOGICAL_DATA_TYPE * PORT_DIRECTION
   declarePortArray(s, x, T, dir) :-
-    !port[x, withType(PortArrayType(x, T, dir))] in s,
+    !port[x, withType(Array(PortType(x, T, dir)))] in s,
     resolvePortInCurrentScope(s, x) == [(_, (_, _))] | error $[Duplicate definition of port [x]].
   
   resolvePort : scope * ID -> list((path * (ID * scope)))
@@ -311,3 +424,30 @@ rules
     typeOf(typeS) == T,
     @x.type := T,
     @x.ref := x'.
+
+///////////////////////////////////////////// new id /////////////////////////////////////////////
+signature
+  relations 
+    id : ID -> ID
+rules
+  declareID : scope * ID * ID
+  declareID(s, k, v) :-
+    !id[k,v] in s.
+  
+  resolveID : scope * ID -> list((path * (ID * ID)))
+  resolveID(s, k) = ps :- 
+    query id
+      filter (GroupScope | UnionScope | StreamScope | StreamletScope | ImplementationScope)*
+        and {k' :- k' == k}
+        min $ < GroupScope, $ < UnionScope, GroupScope < UnionScope, UnionScope < StreamScope, StreamScope < StreamletScope, StreamletScope < ImplementationScope 
+        and true
+         in s |-> ps. //TODO: add scope edge
+          
+  resolveIDInCurrentScope : scope * ID -> list((path * (ID * ID)))
+  resolveIDInCurrentScope(s, k) = ps :-
+    query id
+      filter e
+         and { k' :- k' == k }
+         min 
+         and true
+          in s |-> ps.
