@@ -595,4 +595,4 @@ impl implement<ts: impl of [STREAMLET_NAME1]> of [STREAMLET_NAME2]
 
 All streamlet, implement templates will not present in the final Tydi IR. All transformations will be carried on by the following procedures (for future Rust version).
 
-![tydi-lang_front_end](D:\git\tydi-lang-spoofax\tydi-lang_front_end.drawio.png)
+![tydi-lang_front_end](https://github.com/twoentartian/tydi-lang-spoofax/raw/main/tydi-lang_front_end.drawio.png)
