@@ -3,9 +3,13 @@ module logical_type
 imports lex
 imports exp
 
-context-free sorts LogicalType SubItem StreamProperty
+context-free sorts LogicalType SubItem StreamProperty TypeIndicator
 
 context-free syntax
+TypeIndicator.EmptyTypeIndicator = <>
+TypeIndicator.BasicType = <: <BasicType>>
+TypeIndicator.BasicArrayType = <: <BasicType>[] >
+
 LogicalType.NullType = <Null>
 
 LogicalType.BitsType = <Bit(<Exp>)>
@@ -35,6 +39,7 @@ StreamProperty.Keep = <, x = <Exp>>
 LogicalType.UserDefinedType = <<ID>>
 
 SubItem.SubItem = <<ID> : <LogicalType> ,>
+SubItem.DeclareConst = <const <ID> <TypeIndicator> = <Exp> ,>
 
 context-free priorities
 LogicalType.StreamType<0> .> {LogicalType.StreamType LogicalType.GroupType LogicalType.UnionType},

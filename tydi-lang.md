@@ -591,6 +591,49 @@ impl implement<ts: impl of [STREAMLET_NAME1]> of [STREAMLET_NAME2]
 //ts will be an abstract implement type
 //when instantiating the implement, the "ts" must be an implement of [STREAMLET_NAME1]. If the [STREAMLET_NAME1] is an instantiated streamlet, the "ts" also have the same streamlet template arguments.
 ```
+## Use const values to record a streamlet/implement information
+
+Tydi-lang supports define new const values in Group/Union scope and streamlet scope/implement scope. These local const values can be used to record the information of that streamlet/implement/type. For example, the final generated number of ports.
+
+```cpp
+package test;
+
+type stream0 = Stream(Bit(4));
+const val = 1; // this val will be shadowed.
+type Group com {
+  a: Bit(4),
+  b: Bit(4),
+  const val = 0, //define a const value in type com
+};
+
+const com_value = type com.val; //access the const value in com.
+
+streamlet sl0<i:int, t:type> {
+  const val = 0, //define a const value in streamlet sl0
+};
+
+const test0 = streamlet sl0.val; //access the const value in sl0.
+
+impl tmux<n: int> of sl0<n, type stream0> {
+
+  const val = 0, //define a const value in streamlet implement tmux
+  
+  process{},
+};
+
+const test1 = impl tmux.val; //access the const value in tmux.
+```
+
+Please notice that the syntax includes a prefix "type", "streamlet" and "impl" before the name.
+
+```cpp
+type com.val // indicate the "com" is a type
+streamlet sl0.val // indicate the "sl0" is a streamlet
+impl tmux.val // indicate the "tmux" is a implement
+```
+
+
+
 ## Tydi-lang front end
 
 All streamlet, implement templates will not present in the final Tydi IR. All transformations will be carried on by the following procedures (for future Rust version).

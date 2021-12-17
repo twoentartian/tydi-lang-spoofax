@@ -6,18 +6,7 @@ imports logical_type
 imports streamlet
 
 rules
-  typeOfTypeIndicator : TypeIndicator -> TYPE
-  typeOfTypeIndicator(EmptyTypeIndicator()) = Null().
-  typeOfTypeIndicator(BasicType(basicType)) = T :-
-    typeOfBasicType(basicType) == T.
-  typeOfTypeIndicator(BasicArrayType(basicType)) = Array(T) :-
-    typeOfBasicType(basicType) == T.
-
   statementOk : scope * Statement
-  allowConstAssign : TYPE * TYPE -> TYPE
-  allowConstAssign(T,T) = T.
-  allowConstAssign(Null(),T) = T.
-  allowConstAssign(Float(),Int()) = Float().
   statementOk(s, ConstAssign(id, typeIndicator, exp)) :- {indicatorT expT varT}
     typeOfTypeIndicator(typeIndicator) == indicatorT,
     typeOfExp(s, exp) == expT,

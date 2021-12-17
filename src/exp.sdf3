@@ -40,6 +40,10 @@ Exp.LogicalNot = <! <Exp>> {left}
 Exp.Var = <<ID>>
 Exp.Index = <<Exp> [ <Exp> ] >
 
+Exp.ConstInType = <type <ID> . <ID>>
+Exp.ConstInStreamlet = <streamlet <ID> . <ID>>
+Exp.ConstInImplment = <impl <ID> . <ID>>
+
 Exp.Round = <round ( <Exp> ) >
 Exp.Floor = <floor ( <Exp> ) >
 Exp.Ceil = <ceil ( <Exp> )>

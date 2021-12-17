@@ -23,6 +23,7 @@ Arg.ArgImplementationType = <<ID> : impl of <ID> <ArgExps> >
 
 StreamLetBody.StreamLetPort = < <ID> : <LogicalType> <Direction>,>
 StreamLetBody.StreamLetPortArray = < <ID> : <LogicalType> [ <Exp> ] <Direction>,>
+StreamLetBody.DeclareConstInStreamlet = <const <ID> <TypeIndicator> = <Exp> ,>
 Direction.DirIn = <in>
 Direction.DirOut = <out>
 
@@ -53,6 +54,7 @@ ImplementationBody.DeclareInstance = <instance <ID> ( <ID> <ArgExps> ) ,>
 ImplementationBody.DeclareInstanceArray = <instance <ID> ( <ID> <ArgExps> ) [ <Exp> ] ,>
 ImplementationBody.DeclareNet = <<LogicalTypeSlice> =\> <LogicalTypeSlice> <NetName>,>
 ImplementationBody.DeclareDelayedNet = <<LogicalTypeSlice> =<Exp>=\> <LogicalTypeSlice> <NetName>,>
+ImplementationBody.DeclareConstInImpl = <const <ID> <TypeIndicator> = <Exp> ,>
 NetName.EmptyNetName = <>
 NetName.NetName = < <Exp> > // typeOfExp = String
 

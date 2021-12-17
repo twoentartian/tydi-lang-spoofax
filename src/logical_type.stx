@@ -17,6 +17,20 @@ signature
     LogicalDataType : LOGICAL_DATA_TYPE -> TYPE
     EmptyLogicalDataType : TYPE
 
+///////////////////////////////////////////// type indicator /////////////////////////////////////////////
+rules
+  typeOfTypeIndicator : TypeIndicator -> TYPE
+  typeOfTypeIndicator(EmptyTypeIndicator()) = Null().
+  typeOfTypeIndicator(BasicType(basicType)) = T :-
+    typeOfBasicType(basicType) == T.
+  typeOfTypeIndicator(BasicArrayType(basicType)) = Array(T) :-
+    typeOfBasicType(basicType) == T.
+    
+  allowConstAssign : TYPE * TYPE -> TYPE
+  allowConstAssign(T,T) = T.
+  allowConstAssign(Null(),T) = T.
+  allowConstAssign(Float(),Int()) = Float().
+
 ///////////////////////////////////////////// declare new logical types /////////////////////////////////////////////
 signature
   relations
@@ -33,6 +47,7 @@ rules
   withLogicalType(T) = s :-
     new s, !logicalTypeScope[T] in s.
 
+///////////////////////////////////////////// logical type syste, /////////////////////////////////////////////
 signature
   relations 
     logicalType : ID -> scope
@@ -130,6 +145,12 @@ rules
   addSubItem(s, SubItem(id, logicalType)) :- {T}
     typeOfLogicalType(s, logicalType) == T,
     declareNestedLogicalType(s,id, T).
+    
+  addSubItem(s, DeclareConst(id, typeIndicator, exp)) :- {indicatorT expT varT}
+    typeOfTypeIndicator(typeIndicator) == indicatorT,
+    typeOfExp(s, exp) == expT,
+    allowConstAssign(indicatorT, expT) == varT,
+    declareConst(s, id, varT).
   
   isSameLogicalType : LOGICAL_DATA_TYPE * LOGICAL_DATA_TYPE
   isSameLogicalTypes maps isSameLogicalType(list(*),list(*))
@@ -152,6 +173,16 @@ rules
   isSameLogicalType(DataStreamType(logicalType0, e0), DataStreamType(logicalType1, e1)) :-
     isSameLogicalType(logicalType0, logicalType1) | error $[Mismatch: Type [logicalType0] != type [logicalType1] ],
     e0 == e1 | error $[Dimension mismatch: [e0] != type [e1] ].
+
+///////////////////////////////////////////// const in type /////////////////////////////////////////////
+  logicalTypeTpScope : LOGICAL_DATA_TYPE -> scope
+  logicalTypeTpScope(DataGroupType(s,_)) = s.
+  logicalTypeTpScope(DataUnionType(s,_)) = s.
+
+  typeOfExp_(s, ConstInType(typdId, constId)) = T :- {logicalT typeScope}
+    typeOfLogicalTypeRef(s, typdId) == logicalT,
+    logicalTypeTpScope(logicalT) == typeScope,
+    getConst(typeScope, constId) == (_,T,_).
 
 ///////////////////////////////////////////// logical stream properties /////////////////////////////////////////////
   addStreamProperty : scope * StreamProperty

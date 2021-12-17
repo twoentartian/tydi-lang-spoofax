@@ -85,6 +85,11 @@ rules
     allowStreamletPortType(T) | error $[[T] must a stream type],
     declarePortArray(streamletS, x, T, dirOf(dir)),
     typeOfExp(streamletS, lenExp) == Int().
+  streamletBodyOk(streamletS, DeclareConstInStreamlet(id, typeIndicator, exp)) :- {indicatorT expT varT}
+    typeOfTypeIndicator(typeIndicator) == indicatorT,
+    typeOfExp(streamletS, exp) == expT,
+    allowConstAssign(indicatorT, expT) == varT,
+    declareConst(streamletS, id, varT).
     
   dirOf : Direction -> PORT_DIRECTION
   dirOf(DirIn()) = In().
@@ -92,6 +97,10 @@ rules
   toggleDir : PORT_DIRECTION -> PORT_DIRECTION
   toggleDir(In()) = Out().
   toggleDir(Out()) = In().
+  
+  typeOfExp_(s, ConstInStreamlet(streamletId, constId)) = T :- {streamletScope}
+    typeOfStreamletRef(s, streamletId) == StreamLetType(streamletScope,_,_),
+    getConst(streamletScope, constId) == (_,T,_).
   
 ///////////////////////////////////////////// declare implementation /////////////////////////////////////////////
   implementationOk : scope * Implementation
@@ -254,6 +263,12 @@ rules
     typeOfExp(implS, arrayExp) == Array(T),
     declareConst(implS, x, T),
     implementationBodysOk(implS, implBody).
+    
+  implementationBodyOk(implS, DeclareConstInImpl(id,typeIndicator,exp)) :- {indicatorT expT varT}
+    typeOfTypeIndicator(typeIndicator) == indicatorT,
+    typeOfExp(implS, exp) == expT,
+    allowConstAssign(indicatorT, expT) == varT,
+    declareConst(implS, id, varT).
   
   elifOk : scope * ElifBlock
   elifsOk maps elifOk(*,list(*))
@@ -267,6 +282,10 @@ rules
     implementationBodysOk(implS, implBody).
     
   implementationBodyOk(implS, DeclareProcess()).//TODO: check the type rule of the process
+  
+  typeOfExp_(s, ConstInImplment(implId, constId)) = T :- {implScope}
+    typeOfImplementRef(s, implId) == ImplementationType(implScope,_,_),
+    getConst(implScope, constId) == (_,T,_).
   
 ///////////////////////////////////////////// new streamlet /////////////////////////////////////////////
 signature
