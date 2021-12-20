@@ -612,7 +612,7 @@ streamlet sl0<i:int, t:type> {
   const val = 0, //define a const value in streamlet sl0
 };
 
-const test0 = streamlet sl0.val; //access the const value in sl0.
+const test0 = streamlet sl0<1, type Bit(10)>.val; //access the const value in sl0.
 
 impl tmux<n: int> of sl0<n, type stream0> {
 
@@ -621,7 +621,7 @@ impl tmux<n: int> of sl0<n, type stream0> {
   process{},
 };
 
-const test1 = impl tmux.val; //access the const value in tmux.
+const test1 = impl tmux<1>.val; //access the const value in tmux.
 ```
 
 Please notice that the syntax includes a prefix "type", "streamlet" and "impl" before the name.
@@ -632,6 +632,28 @@ streamlet sl0.val // indicate the "sl0" is a streamlet
 impl tmux.val // indicate the "tmux" is a implement
 ```
 
+## Scope rules
+
+In Tydi-lang, it's not allowed to declare two variables with a same name, but shadowing variables is allowed. For example, many streamlets/ implements might have same data information (the number of output lanes, etc). The shadowing introduces the concept of scope.
+
+Scope is a space to store the const values, streamlets and implements. Each identifier for each type of data can only appear once in the scope. Tydi lang has following data types:
+
+- Const values.
+- Type information.
+- Streamlet definition.
+- Implement definition.
+
+
+Declaring following elements in the Tydi source code will create a new scope:
+
+- Declare a new Group/Union type, the code inside the ```{ ... }``` will be treated as a new scope.
+
+- Declare a new streamlet/implement, the code inside the ```{ ... }``` will be treated as a new scope.
+
+
+When users try to refer to a value/type, the inner scope values will always shadow the values in the outside scope. It's not allowed to refer to a value in an inner scope from an outside scope.
+
+NOTICE: "for" statement and "if" statement also have ```{ ... }``` but they don't create new scopes.
 
 
 ## Tydi-lang front end

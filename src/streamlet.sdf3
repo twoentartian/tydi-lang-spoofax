@@ -27,6 +27,8 @@ StreamLetBody.DeclareConstInStreamlet = <const <ID> <TypeIndicator> = <Exp> ,>
 Direction.DirIn = <in>
 Direction.DirOut = <out>
 
+Exp.ConstInStreamlet = <streamlet <ID> <ArgExps> . <ID>>
+
 context-free priorities
 StreamLetBody.StreamLetPort<2> .> {LogicalType.GroupType LogicalType.UnionType}
 
@@ -63,6 +65,8 @@ ImplementationBody.DeclareProcess = <process { } ,>
 LogicalTypeSlice.LogicalTypeSlice = <<ID>>
 LogicalTypeSlice.AccessIndex = <<LogicalTypeSlice> [ <Exp> ] >
 LogicalTypeSlice.SubLogicalTypeSlice = <<LogicalTypeSlice> . <ID>>
+
+Exp.ConstInImplment = <impl <ID> <ArgExps> . <ID>>
 
 context-free sorts ElifBlock ElseBlock ForBlock
 context-free syntax
